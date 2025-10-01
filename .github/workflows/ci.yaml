@@ -1,0 +1,39 @@
+
+name: ci
+
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request: {}
+  # allow manual runs:
+  workflow_dispatch: {}
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tillitis/tkey-builder:5rc2
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth: 0
+          persist-credentials: false
+
+      - name: check c code formatting
+        run: make checkfmt
+
+      - name: make
+        run: ./build.sh
+
+  reuse-compliance-check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: REUSE Compliance Check
+      uses: fsfe/reuse-action@v4
+      with:
+        args: lint
