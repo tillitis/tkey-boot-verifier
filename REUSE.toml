@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2025 Tillitis AB <tillitis.se>
+# SPDX-License-Identifier: BSD-2-Clause
+version = 1
+
+[[annotations]]
+path = ".github/workflows/*"
+SPDX-FileCopyrightText = "2025 Tillitis AB <tillitis.se>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = [
+     ".clang-format",
+     ".editorconfig",
+     ".gitignore",
+     "Makefile",
+     "README.md",
+     "RELEASE.md",
+     "verifier/app.bin.sha512"
+]
+SPDX-FileCopyrightText = "2025 Tillitis AB <tillitis.se>"
+SPDX-License-Identifier = "BSD-2-Clause"
