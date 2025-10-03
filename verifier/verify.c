@@ -7,26 +7,18 @@
 
 #include "verify.h"
 
-int reset_if_verified(uint8_t pubkey[32])
+int reset_if_verified(uint8_t pubkey[32], enum reset_start reset_type,
+		      uint8_t app_digest[32], uint8_t app_signature[64])
 {
-	uint8_t app_digest[32];
-	uint8_t app_signature[64];
-
-	if (sys_get_digsig(app_digest, app_signature) != 0) {
-		return -1;
-	}
-
-	if (crypto_ed25519_check(app_signature, pubkey, app_digest,
-				 sizeof(app_digest)) != 0) {
+	if (crypto_ed25519_check(app_signature, pubkey, app_digest, 32) != 0) {
 		return -1;
 	}
 
 	// Reset to app slot 1 forcing check of app_digest
 	struct reset rst = {0};
 
-	rst.type = START_FLASH1_VER;
-	memcpy_s(rst.app_digest, sizeof(rst.app_digest), app_digest,
-		 sizeof(app_digest));
+	rst.type = reset_type;
+	memcpy_s(rst.app_digest, sizeof(rst.app_digest), app_digest, 32);
 
 	sys_reset(&rst, 0); // will reset hardware!
 

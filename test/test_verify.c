@@ -78,7 +78,7 @@ static void test_should_boot_verified_flash_app_1(void **state)
 	expect_memory(__wrap_sys_reset, rst, &expected_reset,
 		      sizeof(expected_reset));
 
-	reset_if_verified(pubkey);
+	reset_if_verified(pubkey, START_FLASH1_VER, digest, signature);
 }
 
 static void test_should_not_boot_non_verified_flash_app_1(void **state)
@@ -95,7 +95,8 @@ static void test_should_not_boot_non_verified_flash_app_1(void **state)
 
 	// expect_function_calls(__wrap_sys_reset, 0); // Unsupported by cmocka
 
-	int ret = reset_if_verified(pubkey);
+	int ret =
+	    reset_if_verified(pubkey, START_FLASH1_VER, digest, signature);
 
 	assert_int_equal(ret, -1);
 }
