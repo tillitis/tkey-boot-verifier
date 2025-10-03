@@ -19,3 +19,35 @@ path = [
 ]
 SPDX-FileCopyrightText = "2025 Tillitis AB <tillitis.se>"
 SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = "test/lib/cmocka/include/cmocka_private.h"
+SPDX-FileCopyrightText = "2008 Google Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "test/lib/cmocka/include/cmocka_pbc.h"
+SPDX-FileCopyrightText = "2014 Luis Pabon, Jr."
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "test/lib/cmocka/src/cmocka.c"
+SPDX-FileCopyrightText = [
+    "2008 Google Inc.",
+    "2014-2018 Andreas Schneider <asn@cryptomilk.org>",
+    "2015 Jakub Hrozek <jakub.hrozek@posteo.se>",
+]
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "test/lib/cmocka/include/cmocka.h"
+SPDX-FileCopyrightText = [
+    "2008 Google Inc.",
+    "2014-2022 Andreas Schneider <asn@cryptomilk.org>",
+]
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "test/lib/cmocka/**"
+SPDX-FileCopyrightText = "NONE"
+SPDX-License-Identifier = "Apache-2.0"
