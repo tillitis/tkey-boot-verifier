@@ -9,6 +9,8 @@
 #include <tkey/syscall.h>
 #include <tkey/tk1_mem.h>
 
+#include "verify.h"
+
 // clang-format off
 static volatile uint32_t *app_addr      = (volatile uint32_t *) TK1_MMIO_TK1_APP_ADDR;
 static volatile uint32_t *app_size      = (volatile uint32_t *) TK1_MMIO_TK1_APP_SIZE;
@@ -16,32 +18,6 @@ static volatile uint32_t *cpu_mon_ctrl  = (volatile uint32_t *) TK1_MMIO_TK1_CPU
 static volatile uint32_t *cpu_mon_first = (volatile uint32_t *) TK1_MMIO_TK1_CPU_MON_FIRST;
 static volatile uint32_t *cpu_mon_last  = (volatile uint32_t *) TK1_MMIO_TK1_CPU_MON_LAST;
 // clang-format on
-
-int reset_if_verified(uint8_t pubkey[32])
-{
-	uint8_t app_digest[32];
-	uint8_t app_signature[64];
-
-	if (sys_get_digsig(app_digest, app_signature) != 0) {
-		return -1;
-	}
-
-	if (crypto_ed25519_check(app_signature, pubkey, app_digest,
-				 sizeof(app_digest)) != 0) {
-		return -1;
-	}
-
-	// Reset to app slot 1 forcing check of app_digest
-	struct reset rst = {0};
-
-	rst.type = START_FLASH1_VER;
-	memcpy_s(rst.app_digest, sizeof(rst.app_digest), app_digest,
-		 sizeof(app_digest));
-
-	sys_reset(&rst, 0); // will reset hardware!
-
-	return -2;
-}
 
 int main(void)
 {
