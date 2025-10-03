@@ -3,3 +3,4 @@ compile_commands.json
 verifier/*.o
 verifier/app.bin
 verifier/app.elf
+test/test_verify

@@ -15,7 +15,8 @@ path = [
      "Makefile",
      "README.md",
      "RELEASE.md",
-     "verifier/app.bin.sha512"
+     "verifier/app.bin.sha512",
+     "test/Makefile",
 ]
 SPDX-FileCopyrightText = "2025 Tillitis AB <tillitis.se>"
 SPDX-License-Identifier = "BSD-2-Clause"
