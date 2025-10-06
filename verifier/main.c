@@ -125,6 +125,7 @@ int main(void)
 	struct packet pkt = {0};
 	uint8_t app_digest[32];
 	uint8_t app_signature[64];
+	uint8_t next_app_data[RESET_DATA_SIZE];
 
 	// Pubkey we got from tkeyimage
 	// 9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
@@ -139,41 +140,49 @@ int main(void)
 	*cpu_mon_last = TK1_RAM_BASE + TK1_RAM_SIZE;
 	*cpu_mon_ctrl = 1;
 
-	// if started from client - wait for client data
-	for (;;) {
-		if (read_command(&pkt.hdr, pkt.cmd) != 0) {
-			debug_puts("read_command returned != 0!\n");
-			assert(1 == 2);
-		}
-
-		// Smallest possible payload length (cmd) is 1 byte.
-		switch (pkt.cmd[0]) {
-		case CMD_VERIFY:
-			// read digest and sig from client
-			memcpy(app_digest, &pkt.cmd[1], 32);
-			memcpy(app_signature, &pkt.cmd[33], 64);
-			reset_if_verified(pubkey, START_CLIENT_VER, app_digest, app_signature);
-			assert(1 == 2);
-			break;
-
-		case CMD_RESET:
-			assert(1 == 2);
-			break;
-
-		default:
-			// WTF?
-			assert(1 == 2);
-			break;
-		}
+	if (sys_reset_data(next_app_data) != 0) {
+		assert(1 == 2);
 	}
 
-	// if started from flash
+	if (next_app_data[0] == 0) {
+		// started from flash
 
-	if (sys_get_digsig(app_digest, app_signature) != 0) {
-		return -1;
+		if (sys_get_digsig(app_digest, app_signature) != 0) {
+			return -1;
+		}
+
+		reset_if_verified(pubkey, START_FLASH1_VER, app_digest,
+				  app_signature);
+
+		assert(1 == 2);
+	} else {
+		// started from client - wait for client data
+		for (;;) {
+			if (read_command(&pkt.hdr, pkt.cmd) != 0) {
+				debug_puts("read_command returned != 0!\n");
+				assert(1 == 2);
+			}
+
+			// Smallest possible payload length (cmd) is 1 byte.
+			switch (pkt.cmd[0]) {
+			case CMD_VERIFY:
+				// read digest and sig from client
+				memcpy(app_digest, &pkt.cmd[1], 32);
+				memcpy(app_signature, &pkt.cmd[33], 64);
+				reset_if_verified(pubkey, START_CLIENT_VER,
+						  app_digest, app_signature);
+				assert(1 == 2);
+				break;
+
+			case CMD_RESET:
+				assert(1 == 2);
+				break;
+
+			default:
+				// WTF?
+				assert(1 == 2);
+				break;
+			}
+		}
 	}
-
-	reset_if_verified(pubkey, START_FLASH1_VER, app_digest, app_signature);
-
-	assert(1 == 2);
 }
