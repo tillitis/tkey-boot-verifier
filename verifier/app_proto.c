@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include <tkey/debug.h>
-#include <tkey/tk1_mem.h>
 #include <tkey/platform.h>
+#include <tkey/tk1_mem.h>
 
 #include "app_proto.h"
 
@@ -40,6 +40,16 @@ void appreply(struct frame_header hdr, enum appcmd rspcode, void *buf)
 	case CMD_VERIFY:
 		len = LEN_4;
 		nbytes = 4;
+		break;
+
+	case CMD_UPDATE_APP_INIT:
+		len = LEN_1;
+		nbytes = 1;
+		break;
+
+	case CMD_UPDATE_APP_CHUNK:
+		len = LEN_1;
+		nbytes = 1;
 		break;
 
 	default:

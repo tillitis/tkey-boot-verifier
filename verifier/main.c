@@ -4,16 +4,16 @@
 #include <monocypher/monocypher-ed25519.h>
 #include <stdbool.h>
 #include <tkey/assert.h>
+#include <tkey/debug.h>
 #include <tkey/led.h>
 #include <tkey/lib.h>
+#include <tkey/platform.h>
+#include <tkey/proto.h>
 #include <tkey/syscall.h>
 #include <tkey/tk1_mem.h>
-#include <tkey/proto.h>
-#include <tkey/debug.h>
-#include <tkey/platform.h>
 
-#include "verify.h"
 #include "app_proto.h"
+#include "verify.h"
 
 // clang-format off
 static volatile uint32_t *app_addr      = (volatile uint32_t *) TK1_MMIO_TK1_APP_ADDR;
@@ -23,6 +23,9 @@ static volatile uint32_t *cpu_mon_first = (volatile uint32_t *) TK1_MMIO_TK1_CPU
 static volatile uint32_t *cpu_mon_last  = (volatile uint32_t *) TK1_MMIO_TK1_CPU_MON_LAST;
 static volatile uint32_t *ver		= (volatile uint32_t *) TK1_MMIO_TK1_VERSION;
 // clang-format on
+
+#define WRITE_SIZE 256
+const uint32_t WRITE_ALIGN_MASK = (~(WRITE_SIZE - 1));
 
 // Incoming packet from client
 struct packet {
@@ -117,15 +120,54 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 	return 0;
 }
 
+int write_app(uint32_t addr, uint8_t *data, size_t sz)
+{
+	uint8_t buf[WRITE_SIZE];
+
+	uint32_t buf_offset = addr & ~WRITE_ALIGN_MASK;
+	size_t len = 0;
+
+	debug_puts("app write addr=");
+	debug_putinthex(addr);
+	debug_puts(" size=");
+	debug_putinthex(sz);
+
+	for (size_t i = 0; i < sz; i += len) {
+		size_t bytes_left = sz - i;
+		size_t dst_max_len = WRITE_SIZE - buf_offset;
+		size_t src_max_len =
+		    bytes_left < WRITE_SIZE ? bytes_left : WRITE_SIZE;
+		len = src_max_len < dst_max_len ? src_max_len : dst_max_len;
+
+		memset(buf, 0xff, sizeof(buf));
+		memcpy(buf + buf_offset, data + i, len);
+
+		int ret =
+		    sys_preload_store(addr & WRITE_ALIGN_MASK, buf, WRITE_SIZE);
+		if (ret != 0) {
+			debug_puts("write app failed, addr=");
+			debug_putinthex(addr);
+			debug_puts(" ret=");
+			debug_putinthex(ret);
+			return -1;
+		}
+
+		buf_offset = 0;
+		addr += len;
+	}
+
+	return 0;
+}
+
 int main(void)
 {
 	uint8_t rsp[CMDLEN_MAXBYTES] = {0}; // Response
-	size_t rsp_left =
-	    CMDLEN_MAXBYTES; // How many bytes left in response buf
 	struct packet pkt = {0};
 	uint8_t app_digest[32];
 	uint8_t app_signature[64];
 	uint8_t next_app_data[RESET_DATA_SIZE];
+	uint32_t upload_size = 0;
+	uint32_t upload_offset = 0;
 
 	// Pubkey we got from tkeyimage
 	// 9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
@@ -144,7 +186,7 @@ int main(void)
 		assert(1 == 2);
 	}
 
-	if (next_app_data[0] == 0) {
+	if (false) { // next_app_data[0] == 0) {
 		// started from flash
 
 		if (sys_get_digsig(app_digest, app_signature) != 0) {
@@ -172,6 +214,67 @@ int main(void)
 				reset_if_verified(pubkey, START_CLIENT_VER,
 						  app_digest, app_signature);
 				assert(1 == 2);
+				break;
+
+			case CMD_UPDATE_APP_INIT: {
+				uint32_t local_app_size = 0;
+
+				// Bad length
+				if (pkt.hdr.len != CMDLEN_MAXBYTES) {
+					assert(1 == 2);
+				}
+
+				// size, digest, signature
+				// cmd[1..4] contains the size.
+				local_app_size =
+				    pkt.cmd[1] + (pkt.cmd[2] << 8) +
+				    (pkt.cmd[3] << 16) + (pkt.cmd[4] << 24);
+
+				if (local_app_size == 0 ||
+				    local_app_size > TK1_APP_MAX_SIZE) {
+					debug_puts(
+					    "Message size not within range!\n");
+					assert(1 == 2);
+				}
+
+				upload_size = local_app_size;
+
+				memcpy(app_digest, &pkt.cmd[5], 32);
+				memcpy(app_signature, &pkt.cmd[37], 64);
+
+				if (sys_preload_delete() != 0) {
+					assert(1 == 2);
+				}
+
+				rsp[0] = STATUS_OK;
+				appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
+
+				break;
+			}
+
+			case CMD_UPDATE_APP_CHUNK:
+				// Bad length
+				if (pkt.hdr.len != CMDLEN_MAXBYTES) {
+					assert(1 == 2);
+				}
+
+				size_t data_len = 127;
+				if (write_app(upload_offset, &pkt.cmd[1],
+					      data_len) != 0) {
+					assert(1 == 2);
+				}
+				upload_offset += data_len;
+
+				if (upload_offset >= upload_size) {
+					if (sys_preload_store_fin(
+						upload_size, app_digest,
+						app_signature) != 0) {
+					}
+				}
+
+				rsp[0] = STATUS_OK;
+				appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
+
 				break;
 
 			case CMD_RESET:

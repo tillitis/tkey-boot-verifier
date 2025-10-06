@@ -9,10 +9,12 @@
 #include <tkey/proto.h>
 
 enum appcmd {
-	CMD_VERIFY      = 0x01,
-	CMD_RESET       = 0x02,
+	CMD_VERIFY = 0x01,
+	CMD_RESET = 0x02,
+	CMD_UPDATE_APP_INIT = 0x03,
+	CMD_UPDATE_APP_CHUNK = 0x04,
 
-	CMD_FW_PROBE	    = 0xff,
+	CMD_FW_PROBE = 0xff,
 };
 
 void appreply_nok(struct frame_header hdr);
