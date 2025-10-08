@@ -1,6 +1,6 @@
-module start-verified
+module verifier-client
 
-go 1.25.1
+go 1.24.1
 
 require (
 	github.com/ccoveille/go-safecast v1.1.0 // indirect
