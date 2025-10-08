@@ -41,6 +41,18 @@ var (
 	cmdUpdateAppChunk = appCmd{0x04, "cmdUpdateAppChunk", tkeyclient.CmdLen128}
 )
 
+func reset(tk *tkeyclient.TillitisKey) {
+	tx, err := tkeyclient.NewFrameBuf(cmdReset, 0x01)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = tk.Write(tx); err != nil {
+		fmt.Fprintf(os.Stderr, "Write: %v", err)
+		os.Exit(1)
+	}
+}
+
 func writeChunk(tk *tkeyclient.TillitisKey, chunk []byte) {
 	tx, err := tkeyclient.NewFrameBuf(cmdUpdateAppChunk, 0x01)
 	if err != nil {
