@@ -49,7 +49,9 @@ func reset(tk *tkeyclient.TillitisKey) {
 }
 
 func updateAppInit(tk *tkeyclient.TillitisKey, size int, digest []byte, sig []byte) error {
-	tx, err := tkeyclient.NewFrameBuf(cmdUpdateAppInit, 0x01)
+	id := 0x01
+
+	tx, err := tkeyclient.NewFrameBuf(cmdUpdateAppInit, id)
 	if err != nil {
 		return err
 	}
@@ -67,11 +69,23 @@ func updateAppInit(tk *tkeyclient.TillitisKey, size int, digest []byte, sig []by
 		return err
 	}
 
+	// Read response
+	rx, _, err := tk.ReadFrame(cmdUpdateAppInit, id)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if rx[2] != tkeyclient.StatusOK {
+		return fmt.Errorf("cmdUpdateAppInit not OK")
+	}
+
 	return nil
 }
 
 func writeChunk(tk *tkeyclient.TillitisKey, chunk []byte) error {
-	tx, err := tkeyclient.NewFrameBuf(cmdUpdateAppChunk, 0x01)
+	id := 0x01
+
+	tx, err := tkeyclient.NewFrameBuf(cmdUpdateAppChunk, id)
 	if err != nil {
 		return err
 	}
@@ -84,6 +98,16 @@ func writeChunk(tk *tkeyclient.TillitisKey, chunk []byte) error {
 		return fmt.Errorf("%w", err)
 	}
 
+	// Read response
+	rx, _, err := tk.ReadFrame(cmdUpdateAppChunk, id)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if rx[2] != tkeyclient.StatusOK {
+		return fmt.Errorf("cmdUpdateAppChunk not OK")
+	}
+
 	return nil
 }
 
@@ -93,7 +117,9 @@ func writeChunk(tk *tkeyclient.TillitisKey, chunk []byte) error {
 // - digest 32 bytes
 // - signature 64 bytes
 func verify(tk *tkeyclient.TillitisKey, digest []byte, sig []byte) error {
-	tx, err := tkeyclient.NewFrameBuf(cmdVerify, 0x01)
+	id := 0x01
+
+	tx, err := tkeyclient.NewFrameBuf(cmdVerify, id)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -105,6 +131,16 @@ func verify(tk *tkeyclient.TillitisKey, digest []byte, sig []byte) error {
 
 	if err = tk.Write(tx); err != nil {
 		return fmt.Errorf("%w", err)
+	}
+
+	// Read response
+	rx, _, err := tk.ReadFrame(cmdVerify, id)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if rx[2] != tkeyclient.StatusOK {
+		return fmt.Errorf("cmdVerify not OK")
 	}
 
 	return nil
