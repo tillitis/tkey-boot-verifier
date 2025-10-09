@@ -182,11 +182,17 @@ int main(void)
 	*cpu_mon_last = TK1_RAM_BASE + TK1_RAM_SIZE;
 	*cpu_mon_ctrl = 1;
 
+#ifdef TKEY_DEBUG
+	config_endpoints(IO_CDC | IO_DEBUG);
+#endif
+
 	if (sys_reset_data(next_app_data) != 0) {
 		assert(1 == 2);
 	}
 
-	if (false) { // next_app_data[0] == 0) {
+	if (next_app_data[0] == 17) {
+		led_set(LED_BLUE);
+
 		// started from flash
 
 		if (sys_get_digsig(app_digest, app_signature) != 0) {
@@ -199,6 +205,8 @@ int main(void)
 		assert(1 == 2);
 	} else {
 		// started from client - wait for client data
+		led_set(LED_GREEN);
+
 		for (;;) {
 			if (read_command(&pkt.hdr, pkt.cmd) != 0) {
 				debug_puts("read_command returned != 0!\n");
@@ -248,7 +256,6 @@ int main(void)
 
 				rsp[0] = STATUS_OK;
 				appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
-
 				break;
 			}
 
@@ -259,21 +266,29 @@ int main(void)
 				}
 
 				size_t data_len = 127;
+
 				if (write_app(upload_offset, &pkt.cmd[1],
 					      data_len) != 0) {
 					assert(1 == 2);
 				}
+
 				upload_offset += data_len;
+
+				rsp[0] = STATUS_OK;
+				appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
 
 				if (upload_offset >= upload_size) {
 					if (sys_preload_store_fin(
 						upload_size, app_digest,
 						app_signature) != 0) {
 					}
-				}
 
-				rsp[0] = STATUS_OK;
-				appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
+					struct reset rst = {0};
+
+					rst.type = START_DEFAULT;
+					rst.next_app_data[0] = 17;
+					sys_reset(&rst, 1);
+				}
 
 				break;
 
