@@ -33,7 +33,7 @@ LDFLAGS=-T $(LIBDIR)/app.lds -L $(LIBDIR) -lcommon -lcrt0 -lmonocypher -lsyscall
 
 
 .PHONY: all
-all: verifier-client verifier/app.bin check-verifier-hash
+all: cmd/verifier-client/verifier.bin verifier/app.bin check-verifier-hash verifier-client
 
 # Create compile_commands.json for clangd and LSP
 .PHONY: clangd
@@ -41,6 +41,9 @@ clangd: compile_commands.json
 compile_commands.json:
 	$(MAKE) clean
 	bear -- make verifier/app.bin
+
+cmd/verifier-client/verifier.bin: verifier/app.bin
+	cp verifier/app.bin cmd/verifier-client/verifier.bin
 
 # Turn elf into bin for device
 %.bin: %.elf

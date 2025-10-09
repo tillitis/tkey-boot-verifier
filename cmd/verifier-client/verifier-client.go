@@ -14,6 +14,11 @@ import (
 	"golang.org/x/crypto/blake2s"
 )
 
+// nolint:typecheck // Avoid lint error when the embedding file is missing.
+//
+//go:embed verifier.bing
+var verifierBinary []byte
+
 func updateApp(tk *tkeyclient.TillitisKey, appBin1 []byte, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
 	if err := updateAppInit(tk, len(appBin1), digest, sig); err != nil {
 		return err
@@ -42,15 +47,10 @@ func updateApp(tk *tkeyclient.TillitisKey, appBin1 []byte, digest [blake2s.Size]
 	return nil
 }
 
-func startVerifier(tk *tkeyclient.TillitisKey, path string, appBin []byte, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
-	verBin, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
+func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
 	var secret []byte
 
-	err = tk.LoadApp(verBin, secret)
+	err = tk.LoadApp(verifierBinary, secret)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -144,7 +144,7 @@ func main() {
 		appSig := [ed25519.SignatureSize]byte(
 			ed25519.Sign(privateKey, appDigest[:]))
 
-		if err := startVerifier(tk, "verifier/app.bin", appBin, appDigest, appSig); err != nil {
+		if err := startVerifier(tk, appBin, appDigest, appSig); err != nil {
 			fmt.Printf("couldn't load and start verifier: %v\n", err)
 			os.Exit(1)
 		}
