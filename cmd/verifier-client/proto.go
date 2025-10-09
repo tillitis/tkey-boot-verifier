@@ -1,10 +1,12 @@
 package main
 
 import (
+	"crypto/ed25519"
 	"fmt"
 	"os"
 
 	"github.com/tillitis/tkeyclient"
+	"golang.org/x/crypto/blake2s"
 )
 
 type appCmd struct {
@@ -53,7 +55,7 @@ func reset(tk *tkeyclient.TillitisKey) {
 	}
 }
 
-func updateAppInit(tk *tkeyclient.TillitisKey, size int, digest []byte, sig []byte) error {
+func updateAppInit(tk *tkeyclient.TillitisKey, size int, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
 	id := 0x01
 
 	tx, err := tkeyclient.NewFrameBuf(cmdUpdateAppInit, id)
@@ -65,8 +67,8 @@ func updateAppInit(tk *tkeyclient.TillitisKey, size int, digest []byte, sig []by
 	tx[3] = byte(size >> 8)
 	tx[4] = byte(size >> 16)
 	tx[5] = byte(size >> 24)
-	copy(tx[6:], digest)
-	copy(tx[38:], sig)
+	copy(tx[6:], digest[:])
+	copy(tx[38:], sig[:])
 
 	tkeyclient.Dump("update app1 tx", tx)
 

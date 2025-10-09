@@ -4,20 +4,17 @@
 package main
 
 import (
+	"crypto/ed25519"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
 
 	"github.com/tillitis/tkeyclient"
+	"golang.org/x/crypto/blake2s"
 )
 
-func updateApp(tk *tkeyclient.TillitisKey, path string, digest []byte, sig []byte) error {
-	appBin1, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
+func updateApp(tk *tkeyclient.TillitisKey, appBin1 []byte, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
 	if err := updateAppInit(tk, len(appBin1), digest, sig); err != nil {
 		return err
 	}
@@ -69,17 +66,12 @@ func main() {
 	app1Path := flag.String("update-app1", "", "Path to app to install in flash slot 1")
 	flag.Parse()
 
-	// TODO
-	app1Digest, err := hex.DecodeString("953fc88fc7612006046322c6a199b959d3b4b2eadf711f71b2f8100bd8789ec2")
-	if err != nil {
-		panic(err)
+	seed := []byte{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 	}
 
-	// TODO
-	app1Sig, err := hex.DecodeString("079f4900f093e9aced9464628eb7954585b027215b0b7fbf1dd77f3bae431e7601adb1e54dea855ad6b2f8732838e6c42f4394814bd66cb4828527f92b2abc0b")
-	if err != nil {
-		panic(err)
-	}
+	privateKey := ed25519.NewKeyFromSeed(seed)
 
 	devPath, err := tkeyclient.DetectSerialPort(true)
 	if err != nil {
@@ -94,12 +86,31 @@ func main() {
 	}
 
 	if *app1Path != "" {
-		if err := updateApp(tk, *app1Path, app1Digest, app1Sig); err != nil {
+		appBin1, err := os.ReadFile(*app1Path)
+		if err != nil {
+			fmt.Printf("couldn't read file: %v\n", err)
+			os.Exit(1)
+		}
+
+		app1Digest := blake2s.Sum256(appBin1)
+		app1Sig := [ed25519.SignatureSize]byte(
+			ed25519.Sign(privateKey, app1Digest[:]))
+
+		if err := updateApp(tk, appBin1, app1Digest, app1Sig); err != nil {
 			fmt.Printf("couldn't update app slot 1: %v\n", err)
 			os.Exit(1)
 		}
 
 	} else {
+		app1Digest, err := hex.DecodeString("953fc88fc7612006046322c6a199b959d3b4b2eadf711f71b2f8100bd8789ec2")
+		if err != nil {
+			panic(err)
+		}
+		app1Sig, err := hex.DecodeString("079f4900f093e9aced9464628eb7954585b027215b0b7fbf1dd77f3bae431e7601adb1e54dea855ad6b2f8732838e6c42f4394814bd66cb4828527f92b2abc0b")
+		if err != nil {
+			panic(err)
+		}
+
 		if err := startVerifier(tk, "verifier/app.bin", app1Digest, app1Sig); err != nil {
 			fmt.Printf("couldn't load and start verifier: %v\n", err)
 			os.Exit(1)
