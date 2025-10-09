@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Tillitis AB <tillitis.se>
 // SPDX-License-Identifier: BSD-2-Clause
 
+#include <tkey/assert.h>
 #include <tkey/debug.h>
 #include <tkey/platform.h>
 #include <tkey/tk1_mem.h>
@@ -43,20 +44,20 @@ void appreply(struct frame_header hdr, enum appcmd rspcode, void *buf)
 		break;
 
 	case CMD_UPDATE_APP_INIT:
-		len = LEN_1;
-		nbytes = 1;
+		len = LEN_4;
+		nbytes = 4;
 		break;
 
 	case CMD_UPDATE_APP_CHUNK:
-		len = LEN_1;
-		nbytes = 1;
+		len = LEN_4;
+		nbytes = 4;
 		break;
 
 	default:
 		debug_puts("appreply(): Unknown response code: ");
 		debug_puthex(rspcode);
 		debug_puts("\n");
-
+		assert(1 == 2);
 		return;
 	}
 

@@ -34,6 +34,11 @@ var (
 	cmdReset          = appCmd{0x02, "cmdReset", tkeyclient.CmdLen1}
 	cmdUpdateAppInit  = appCmd{0x03, "cmdUpdateAppInit", tkeyclient.CmdLen128}
 	cmdUpdateAppChunk = appCmd{0x04, "cmdUpdateAppChunk", tkeyclient.CmdLen128}
+
+	rspVerify         = appCmd{0x01, "rspVerify", tkeyclient.CmdLen4}
+	rspReset          = appCmd{0x02, "rspReset", tkeyclient.CmdLen4}
+	rspUpdateAppInit  = appCmd{0x03, "rspUpdateAppInit", tkeyclient.CmdLen4}
+	rspUpdateAppChunk = appCmd{0x04, "rspUpdateAppChunk", tkeyclient.CmdLen4}
 )
 
 func reset(tk *tkeyclient.TillitisKey) {
@@ -70,10 +75,12 @@ func updateAppInit(tk *tkeyclient.TillitisKey, size int, digest []byte, sig []by
 	}
 
 	// Read response
-	rx, _, err := tk.ReadFrame(cmdUpdateAppInit, id)
+	rx, _, err := tk.ReadFrame(rspUpdateAppInit, id)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
+	tkeyclient.Dump("update app1 rx", rx)
 
 	if rx[2] != tkeyclient.StatusOK {
 		return fmt.Errorf("cmdUpdateAppInit not OK")
@@ -99,7 +106,7 @@ func writeChunk(tk *tkeyclient.TillitisKey, chunk []byte) error {
 	}
 
 	// Read response
-	rx, _, err := tk.ReadFrame(cmdUpdateAppChunk, id)
+	rx, _, err := tk.ReadFrame(rspUpdateAppChunk, id)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -134,7 +141,7 @@ func verify(tk *tkeyclient.TillitisKey, digest []byte, sig []byte) error {
 	}
 
 	// Read response
-	rx, _, err := tk.ReadFrame(cmdVerify, id)
+	rx, _, err := tk.ReadFrame(rspVerify, id)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
