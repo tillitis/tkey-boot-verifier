@@ -82,9 +82,29 @@ func startVerifier(tk *tkeyclient.TillitisKey, path string, appBin []byte, diges
 	return nil
 }
 
+func usage() {
+	fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path\n%s -cmd install -app path\n", os.Args[0], os.Args[0])
+	flag.PrintDefaults()
+}
+
 func main() {
-	app1Path := flag.String("update-app1", "", "Path to app to install in flash slot 1")
+	cmd := flag.String("cmd", "", "Command")
+	appPath := flag.String("app", "", "Path to app")
+	flag.Usage = usage
+
 	flag.Parse()
+
+	if *appPath == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	// Both commands need
+	appBin, err := os.ReadFile(*appPath)
+	if err != nil {
+		fmt.Printf("couldn't read file: %v\n", err)
+		os.Exit(1)
+	}
 
 	seed := []byte{
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
@@ -107,30 +127,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *app1Path != "" {
-		appBin1, err := os.ReadFile(*app1Path)
-		if err != nil {
-			fmt.Printf("couldn't read file: %v\n", err)
-			os.Exit(1)
-		}
-
-		app1Digest := blake2s.Sum256(appBin1)
+	switch *cmd {
+	case "install":
+		app1Digest := blake2s.Sum256(appBin)
 		app1Sig := [ed25519.SignatureSize]byte(
 			ed25519.Sign(privateKey, app1Digest[:]))
 
-		if err := updateApp(tk, appBin1, app1Digest, app1Sig); err != nil {
+		if err := updateApp(tk, appBin, app1Digest, app1Sig); err != nil {
 			fmt.Printf("couldn't update app slot 1: %v\n", err)
 			os.Exit(1)
 		}
 
-	} else {
+	case "boot":
 		// Start verifier, then another app
-		appBin, err := os.ReadFile("signer.bin")
-		if err != nil {
-			fmt.Printf("couldn't read file: %v\n", err)
-			os.Exit(1)
-		}
-
 		appDigest := blake2s.Sum256(appBin)
 		appSig := [ed25519.SignatureSize]byte(
 			ed25519.Sign(privateKey, appDigest[:]))
@@ -139,5 +148,8 @@ func main() {
 			fmt.Printf("couldn't load and start verifier: %v\n", err)
 			os.Exit(1)
 		}
+	default:
+		flag.Usage()
+		os.Exit(1)
 	}
 }
