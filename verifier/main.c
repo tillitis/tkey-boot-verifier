@@ -24,6 +24,9 @@ static volatile uint32_t *cpu_mon_last  = (volatile uint32_t *) TK1_MMIO_TK1_CPU
 static volatile uint32_t *ver		= (volatile uint32_t *) TK1_MMIO_TK1_VERSION;
 // clang-format on
 
+#define MIN(a, b) ((a) <= (b) ? (a) : (b))
+
+#define CHUNK_PAYLOAD_LEN (CMDLEN_MAXBYTES - 1)
 #define WRITE_SIZE 256
 const uint32_t WRITE_ALIGN_MASK = (~(WRITE_SIZE - 1));
 
@@ -265,7 +268,10 @@ int main(void)
 					assert(1 == 2);
 				}
 
-				size_t data_len = 127;
+				assert(upload_size > upload_offset);
+				size_t data_len =
+				    MIN(upload_size - upload_offset,
+					CHUNK_PAYLOAD_LEN);
 
 				if (write_app(upload_offset, &pkt.cmd[1],
 					      data_len) != 0) {
