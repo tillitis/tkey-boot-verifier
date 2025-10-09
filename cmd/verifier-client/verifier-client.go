@@ -5,10 +5,10 @@ package main
 
 import (
 	"crypto/ed25519"
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/tillitis/tkeyclient"
 	"golang.org/x/crypto/blake2s"
@@ -42,21 +42,41 @@ func updateApp(tk *tkeyclient.TillitisKey, appBin1 []byte, digest [blake2s.Size]
 	return nil
 }
 
-func startVerifier(tk *tkeyclient.TillitisKey, path string, digest []byte, sig []byte) error {
-	appBin1, err := os.ReadFile(path)
+func startVerifier(tk *tkeyclient.TillitisKey, path string, appBin []byte, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
+	verBin, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	var secret []byte
 
-	err = tk.LoadApp(appBin1, secret)
+	err = tk.LoadApp(verBin, secret)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	if verify(tk, digest, sig) != nil {
 		return err
+	}
+
+	// Wait for TKey to reset
+	time.Sleep(500 * time.Millisecond)
+
+	devPath, err := tkeyclient.DetectSerialPort(true)
+	if err != nil {
+		fmt.Printf("couldn't find any TKeys\n")
+		os.Exit(1)
+	}
+
+	if err = tk.Connect(devPath, tkeyclient.WithSpeed(tkeyclient.SerialSpeed)); err != nil {
+		fmt.Printf("Could not open %s: %v\n", devPath, err)
+		os.Exit(1)
+	}
+
+	// load appBin (using USS?)
+	err = tk.LoadApp(appBin, []byte{})
+	if err != nil {
+		fmt.Printf("%v", err)
 	}
 
 	return nil
@@ -72,6 +92,8 @@ func main() {
 	}
 
 	privateKey := ed25519.NewKeyFromSeed(seed)
+
+	tkeyclient.SilenceLogging()
 
 	devPath, err := tkeyclient.DetectSerialPort(true)
 	if err != nil {
@@ -102,16 +124,18 @@ func main() {
 		}
 
 	} else {
-		app1Digest, err := hex.DecodeString("953fc88fc7612006046322c6a199b959d3b4b2eadf711f71b2f8100bd8789ec2")
+		// Start verifier, then another app
+		appBin, err := os.ReadFile("signer.bin")
 		if err != nil {
-			panic(err)
-		}
-		app1Sig, err := hex.DecodeString("079f4900f093e9aced9464628eb7954585b027215b0b7fbf1dd77f3bae431e7601adb1e54dea855ad6b2f8732838e6c42f4394814bd66cb4828527f92b2abc0b")
-		if err != nil {
-			panic(err)
+			fmt.Printf("couldn't read file: %v\n", err)
+			os.Exit(1)
 		}
 
-		if err := startVerifier(tk, "verifier/app.bin", app1Digest, app1Sig); err != nil {
+		appDigest := blake2s.Sum256(appBin)
+		appSig := [ed25519.SignatureSize]byte(
+			ed25519.Sign(privateKey, appDigest[:]))
+
+		if err := startVerifier(tk, "verifier/app.bin", appBin, appDigest, appSig); err != nil {
 			fmt.Printf("couldn't load and start verifier: %v\n", err)
 			os.Exit(1)
 		}

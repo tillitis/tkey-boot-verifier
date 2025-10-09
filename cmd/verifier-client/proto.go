@@ -125,7 +125,7 @@ func writeChunk(tk *tkeyclient.TillitisKey, chunk []byte) error {
 // - 0x01 (verify) 1 byte
 // - digest 32 bytes
 // - signature 64 bytes
-func verify(tk *tkeyclient.TillitisKey, digest []byte, sig []byte) error {
+func verify(tk *tkeyclient.TillitisKey, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
 	id := 0x01
 
 	tx, err := tkeyclient.NewFrameBuf(cmdVerify, id)
@@ -133,8 +133,8 @@ func verify(tk *tkeyclient.TillitisKey, digest []byte, sig []byte) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	copy(tx[2:], digest)
-	copy(tx[34:], sig)
+	copy(tx[2:], digest[:])
+	copy(tx[34:], sig[:])
 
 	tkeyclient.Dump("verify tx", tx)
 
@@ -142,15 +142,9 @@ func verify(tk *tkeyclient.TillitisKey, digest []byte, sig []byte) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	// Read response
-	rx, _, err := tk.ReadFrame(rspVerify, id)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	if rx[2] != tkeyclient.StatusOK {
-		return fmt.Errorf("cmdVerify not OK")
-	}
+	// Wait until port closes
+	tk.ReadFrame(rspVerify, 0x01)
+	tk.Close()
 
 	return nil
 }
