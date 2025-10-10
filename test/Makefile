@@ -18,15 +18,15 @@ LDFLAGS += \
 	   -Wl,--wrap=sys_reset
 
 CFILES= \
-	test_verify.c \
+	tests/test_verify.c \
 	lib/cmocka/src/cmocka.c \
-	assert_halt.c \
-	doubles/syscall_stub.c \
+	platform/assert_halt.c \
+	platform/fakesys.c \
 	$(LIBDIR)/libcommon/lib.c \
 	$(LIBDIR)/monocypher/monocypher.c \
 	$(LIBDIR)/monocypher/monocypher-ed25519.c \
 	$(APPDIR)/verify.c \
 
-test_verify: $(CFILES) Makefile
+tests/test_verify: $(CFILES) Makefile
 	$(CC) $(CFLAGS) $(CFILES) $(LDFLAGS) -o $@
 

@@ -5,7 +5,7 @@
 #include <string.h>
 #include <tkey/syscall.h>
 
-#include "syscall_stub.h"
+#include "fakesys.h"
 
 struct digsig {
 	uint8_t digest[32];
@@ -22,7 +22,7 @@ int sys_get_digsig(uint8_t digest[32], uint8_t signature[64])
 	return 0;
 }
 
-void sys_stub_set_digsig(uint8_t digest[32], uint8_t signature[64])
+void fakesys_set_digsig(uint8_t digest[32], uint8_t signature[64])
 {
 	memcpy(digsig.digest, digest, sizeof(digsig.digest));
 	memcpy(digsig.signature, signature, sizeof(digsig.signature));

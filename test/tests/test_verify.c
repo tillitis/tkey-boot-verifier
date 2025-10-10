@@ -12,8 +12,8 @@
 #include <string.h>
 #include <tkey/syscall.h> // cmocka need to be included last
 			  //
-#include "../verifier/verify.h"
-#include "doubles/syscall_stub.h"
+#include "../../verifier/verify.h"
+#include "../platform/fakesys.h"
 
 // Private key used to sign:
 //   000102030405060708090a0b0c0d0e0f
@@ -65,7 +65,7 @@ static void test_should_boot_verified_flash_app_1(void **state)
 	memcpy(pubkey, PUBKEY, sizeof(pubkey));
 	memcpy(digest, DIGEST, sizeof(digest));
 
-	sys_stub_set_digsig(digest, signature);
+	fakesys_set_digsig(digest, signature);
 
 	struct reset expected_reset = {0};
 	expected_reset.type = START_FLASH1_VER;
@@ -91,7 +91,7 @@ static void test_should_not_boot_non_verified_flash_app_1(void **state)
 	memcpy(pubkey, PUBKEY, sizeof(pubkey));
 	memcpy(digest, DIGEST, sizeof(digest));
 
-	sys_stub_set_digsig(digest, signature);
+	fakesys_set_digsig(digest, signature);
 
 	// expect_function_calls(__wrap_sys_reset, 0); // Unsupported by cmocka
 
