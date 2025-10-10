@@ -19,6 +19,7 @@ path = [
      "go.sum",
      "verifier/app.bin.sha512",
      "test/Makefile",
+     "test/.gitignore",
 ]
 SPDX-FileCopyrightText = "2025 Tillitis AB <tillitis.se>"
 SPDX-License-Identifier = "BSD-2-Clause"
