@@ -14,6 +14,7 @@
 
 #include "../../verifier/update.h"
 #include "../platform/fakesys.h"
+#include "../utils/tcmocka_util.h"
 
 static void test_write_app_can_write_app_to_erased_slot(void **state);
 static void test_write_app_should_only_write_app(void **state);
@@ -95,7 +96,7 @@ static void test_write_app_should_only_write_app(void **state)
 		const struct test_case *test = &test_cases[test_n];
 		uint8_t app[128 * 1024];
 
-		print_message("test: %lu, offset: 0x%x, len: 0x%lx\n", test_n,
+		print_subtest("%lu, offset: 0x%x, len: 0x%lx\n", test_n,
 			      test->offset, test->len);
 
 		// Arrange
