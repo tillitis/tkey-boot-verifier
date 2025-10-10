@@ -18,12 +18,14 @@
 
 static void test_write_app_can_write_app_to_erased_slot(void **state);
 static void test_write_app_should_only_write_app(void **state);
+static void test_write_app_should_fail_when_app_is_too_large(void **state);
 
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 	    cmocka_unit_test(test_write_app_can_write_app_to_erased_slot),
 	    cmocka_unit_test(test_write_app_should_only_write_app),
+	    cmocka_unit_test(test_write_app_should_fail_when_app_is_too_large),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
@@ -113,5 +115,34 @@ static void test_write_app_should_only_write_app(void **state)
 		    test->offset, app, test->len));
 		assert_true(fakesys_preload_range_contains_ff(
 		    test->offset + test->len, sizeof(app)));
+	}
+}
+
+static void test_write_app_should_fail_when_app_is_too_large(void **state)
+{
+	const struct test_case test_cases[] = {
+	    {.offset = 0, .len = MAX_APP_SIZE + 1},
+	    {.offset = 0, .len = MAX_APP_SIZE + 2},
+	    {.offset = 0, .len = 1.42 * MAX_APP_SIZE},
+	};
+
+	size_t test_n = 0;
+
+	for (test_n = 0; test_n < ARRAY_LEN(test_cases); test_n++) {
+		const struct test_case *test = &test_cases[test_n];
+		uint8_t app[128 * 1024];
+
+		print_subtest("%lu, offset: %u, len: %lu\n", test_n,
+			      test->offset, test->len);
+
+		// Arrange
+		fakesys_preload_erase();
+		generate_app(app, sizeof(app), test->len);
+
+		// Act
+		int ret = write_app(test->offset, app, test->len);
+
+		// Assert
+		assert_int_equal(ret, -1);
 	}
 }
