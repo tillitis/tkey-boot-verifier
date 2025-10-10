@@ -35,3 +35,15 @@ TEST_VERIFY_CFILES = tests/test_verify.c $(TEST_CFILES) $(APPDIR)/verify.c
 tests/test_verify: $(TEST_VERIFY_CFILES) Makefile
 	$(CC) $(CFLAGS) $(TEST_VERIFY_CFILES) $(LDFLAGS) -o $@
 
+FMTFILES=tests/*.[ch] platform/*.[ch]
+.PHONY: fmt
+fmt:
+	clang-format --dry-run --ferror-limit=0 $(FMTFILES)
+	clang-format --verbose -i $(FMTFILES)
+.PHONY: checkfmt
+checkfmt:
+	clang-format --dry-run --ferror-limit=0 --Werror $(FMTFILES)
+
+.PHONY: clean
+clean:
+	rm -f tests/test_update tests/test_verify
