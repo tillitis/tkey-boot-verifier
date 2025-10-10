@@ -68,7 +68,8 @@ verifier-client:
 	go build ./cmd/verifier-client
 
 # Simple ed25519 verifier app
-VERIFIEROBJS=verifier/main.o verifier/verify.o verifier/app_proto.o
+VERIFIEROBJS=verifier/main.o verifier/verify.o verifier/app_proto.o \
+    verifier/update.o
 verifier/app.elf: $(VERIFIEROBJS)
 	$(CC) $(CFLAGS) $(VERIFIEROBJS) $(LDFLAGS) -I $(LIBDIR) -o $@
 $(VERIFIEROBJS): $(INCLUDE)/tkey/tk1_mem.h

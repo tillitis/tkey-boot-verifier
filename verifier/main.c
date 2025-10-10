@@ -13,6 +13,7 @@
 #include <tkey/tk1_mem.h>
 
 #include "app_proto.h"
+#include "update.h"
 #include "verify.h"
 
 // clang-format off
@@ -27,8 +28,6 @@ static volatile uint32_t *ver		= (volatile uint32_t *) TK1_MMIO_TK1_VERSION;
 #define MIN(a, b) ((a) <= (b) ? (a) : (b))
 
 #define CHUNK_PAYLOAD_LEN (CMDLEN_MAXBYTES - 1)
-#define WRITE_SIZE 256
-const uint32_t WRITE_ALIGN_MASK = (~(WRITE_SIZE - 1));
 
 // Incoming packet from client
 struct packet {
@@ -118,45 +117,6 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 		debug_lf();
 
 		return -1;
-	}
-
-	return 0;
-}
-
-int write_app(uint32_t addr, uint8_t *data, size_t sz)
-{
-	uint8_t buf[WRITE_SIZE];
-
-	uint32_t buf_offset = addr & ~WRITE_ALIGN_MASK;
-	size_t len = 0;
-
-	debug_puts("app write addr=");
-	debug_putinthex(addr);
-	debug_puts(" size=");
-	debug_putinthex(sz);
-
-	for (size_t i = 0; i < sz; i += len) {
-		size_t bytes_left = sz - i;
-		size_t dst_max_len = WRITE_SIZE - buf_offset;
-		size_t src_max_len =
-		    bytes_left < WRITE_SIZE ? bytes_left : WRITE_SIZE;
-		len = src_max_len < dst_max_len ? src_max_len : dst_max_len;
-
-		memset(buf, 0xff, sizeof(buf));
-		memcpy(buf + buf_offset, data + i, len);
-
-		int ret =
-		    sys_preload_store(addr & WRITE_ALIGN_MASK, buf, WRITE_SIZE);
-		if (ret != 0) {
-			debug_puts("write app failed, addr=");
-			debug_putinthex(addr);
-			debug_puts(" ret=");
-			debug_putinthex(ret);
-			return -1;
-		}
-
-		buf_offset = 0;
-		addr += len;
 	}
 
 	return 0;
