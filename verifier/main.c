@@ -247,6 +247,7 @@ int main(void)
 					if (sys_preload_store_fin(
 						upload_size, app_digest,
 						app_signature) != 0) {
+						assert(1 == 2);
 					}
 
 					struct reset rst = {0};
