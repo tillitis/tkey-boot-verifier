@@ -122,15 +122,143 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 	return 0;
 }
 
-int main(void)
+enum state {
+	STATE_INIT = 0,
+	STATE_VERIFY_FLASH,
+	STATE_WAIT_FOR_COMMAND,
+};
+
+// Context for the loading of a message
+struct context {
+	uint8_t pubkey[32];
+};
+
+static void update_app(uint32_t upload_size, uint32_t upload_offset,
+		       uint8_t app_digest[32], uint8_t app_signature[64])
+{
+	for (;;) {
+		struct packet pkt = {0};
+		uint8_t rsp[CMDLEN_MAXBYTES] = {0}; // Response
+
+		if (read_command(&pkt.hdr, pkt.cmd) != 0) {
+			debug_puts("read_command returned != 0!\n");
+			assert(1 == 2);
+		}
+
+		switch (pkt.cmd[0]) {
+		case CMD_UPDATE_APP_CHUNK:
+			// Bad length
+			if (pkt.hdr.len != CMDLEN_MAXBYTES) {
+				assert(1 == 2);
+			}
+
+			assert(upload_size > upload_offset);
+			size_t data_len =
+			    MIN(upload_size - upload_offset, CHUNK_PAYLOAD_LEN);
+
+			if (write_app(upload_offset, &pkt.cmd[1], data_len) !=
+			    0) {
+				assert(1 == 2);
+			}
+
+			upload_offset += data_len;
+
+			rsp[0] = STATUS_OK;
+			appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
+
+			if (upload_offset >= upload_size) {
+				if (sys_preload_store_fin(upload_size,
+							  app_digest,
+							  app_signature) != 0) {
+					assert(1 == 2);
+				}
+
+				struct reset rst = {0};
+
+				rst.type = START_DEFAULT;
+				rst.next_app_data[0] = 17;
+				sys_reset(&rst, 1);
+			}
+
+			break;
+		default:
+			assert(1 == 2);
+		}
+	}
+}
+
+void handle_command(struct packet pkt, uint8_t pubkey[32])
 {
 	uint8_t rsp[CMDLEN_MAXBYTES] = {0}; // Response
-	struct packet pkt = {0};
-	uint8_t app_digest[32];
-	uint8_t app_signature[64];
+
+	// Smallest possible payload length (cmd) is 1 byte.
+	switch (pkt.cmd[0]) {
+	case CMD_VERIFY: {
+		uint8_t app_digest[32] = {0};
+		uint8_t app_signature[64] = {0};
+		// read digest and sig from client
+		memcpy(app_digest, &pkt.cmd[1], 32);
+		memcpy(app_signature, &pkt.cmd[33], 64);
+		reset_if_verified(pubkey, START_CLIENT_VER, app_digest,
+				  app_signature);
+		break;
+	}
+
+	case CMD_UPDATE_APP_INIT: {
+		uint8_t app_digest[32] = {0};
+		uint8_t app_signature[64] = {0};
+		uint32_t upload_size = 0;
+		uint32_t upload_offset = 0;
+		uint32_t local_app_size = 0;
+
+		// Bad length
+		if (pkt.hdr.len != CMDLEN_MAXBYTES) {
+			assert(1 == 2);
+		}
+
+		// size, digest, signature
+		// cmd[1..4] contains the size.
+		local_app_size = pkt.cmd[1] + (pkt.cmd[2] << 8) +
+				 (pkt.cmd[3] << 16) + (pkt.cmd[4] << 24);
+
+		if (local_app_size == 0 || local_app_size > TK1_APP_MAX_SIZE) {
+			debug_puts("Message size not within range!\n");
+			assert(1 == 2);
+		}
+
+		upload_size = local_app_size;
+
+		memcpy(app_digest, &pkt.cmd[5], 32);
+		memcpy(app_signature, &pkt.cmd[37], 64);
+
+		if (sys_preload_delete() != 0) {
+			assert(1 == 2);
+		}
+
+		rsp[0] = STATUS_OK;
+		appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
+
+		update_app(upload_offset, upload_size, app_digest,
+			   app_signature);
+		break;
+	}
+
+	case CMD_RESET:
+		assert(1 == 2);
+		break;
+
+	default:
+		// WTF?
+		assert(1 == 2);
+		break;
+	}
+}
+
+int main(void)
+{
+	enum state state = STATE_INIT;
 	uint8_t next_app_data[RESET_DATA_SIZE];
-	uint32_t upload_size = 0;
-	uint32_t upload_offset = 0;
+	struct packet pkt = {0};
 
 	// Pubkey we got from tkeyimage
 	// 9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
@@ -153,121 +281,41 @@ int main(void)
 		assert(1 == 2);
 	}
 
-	if (next_app_data[0] == 17) {
-		led_set(LED_BLUE);
+	for (;;) {
+		switch (state) {
+		case STATE_INIT:
+			if (next_app_data[0] == 17) {
+				state = STATE_VERIFY_FLASH;
+			} else {
+				state = STATE_WAIT_FOR_COMMAND;
+			}
+			break;
 
-		// started from flash
+		case STATE_VERIFY_FLASH: {
+			uint8_t app_digest[32] = {0};
+			uint8_t app_signature[64] = {0};
 
-		if (sys_get_digsig(app_digest, app_signature) != 0) {
-			return -1;
+			led_set(LED_BLUE);
+
+			if (sys_get_digsig(app_digest, app_signature) != 0) {
+				return -1;
+			}
+
+			reset_if_verified(pubkey, START_FLASH1_VER, app_digest,
+					  app_signature);
+			break;
 		}
 
-		reset_if_verified(pubkey, START_FLASH1_VER, app_digest,
-				  app_signature);
+		case STATE_WAIT_FOR_COMMAND:
+			// started from client - wait for client data
+			led_set(LED_GREEN);
 
-		assert(1 == 2);
-	} else {
-		// started from client - wait for client data
-		led_set(LED_GREEN);
-
-		for (;;) {
 			if (read_command(&pkt.hdr, pkt.cmd) != 0) {
 				debug_puts("read_command returned != 0!\n");
 				assert(1 == 2);
 			}
-
-			// Smallest possible payload length (cmd) is 1 byte.
-			switch (pkt.cmd[0]) {
-			case CMD_VERIFY:
-				// read digest and sig from client
-				memcpy(app_digest, &pkt.cmd[1], 32);
-				memcpy(app_signature, &pkt.cmd[33], 64);
-				reset_if_verified(pubkey, START_CLIENT_VER,
-						  app_digest, app_signature);
-				assert(1 == 2);
-				break;
-
-			case CMD_UPDATE_APP_INIT: {
-				uint32_t local_app_size = 0;
-
-				// Bad length
-				if (pkt.hdr.len != CMDLEN_MAXBYTES) {
-					assert(1 == 2);
-				}
-
-				// size, digest, signature
-				// cmd[1..4] contains the size.
-				local_app_size =
-				    pkt.cmd[1] + (pkt.cmd[2] << 8) +
-				    (pkt.cmd[3] << 16) + (pkt.cmd[4] << 24);
-
-				if (local_app_size == 0 ||
-				    local_app_size > TK1_APP_MAX_SIZE) {
-					debug_puts(
-					    "Message size not within range!\n");
-					assert(1 == 2);
-				}
-
-				upload_size = local_app_size;
-
-				memcpy(app_digest, &pkt.cmd[5], 32);
-				memcpy(app_signature, &pkt.cmd[37], 64);
-
-				if (sys_preload_delete() != 0) {
-					assert(1 == 2);
-				}
-
-				rsp[0] = STATUS_OK;
-				appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
-				break;
-			}
-
-			case CMD_UPDATE_APP_CHUNK:
-				// Bad length
-				if (pkt.hdr.len != CMDLEN_MAXBYTES) {
-					assert(1 == 2);
-				}
-
-				assert(upload_size > upload_offset);
-				size_t data_len =
-				    MIN(upload_size - upload_offset,
-					CHUNK_PAYLOAD_LEN);
-
-				if (write_app(upload_offset, &pkt.cmd[1],
-					      data_len) != 0) {
-					assert(1 == 2);
-				}
-
-				upload_offset += data_len;
-
-				rsp[0] = STATUS_OK;
-				appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
-
-				if (upload_offset >= upload_size) {
-					if (sys_preload_store_fin(
-						upload_size, app_digest,
-						app_signature) != 0) {
-						assert(1 == 2);
-					}
-
-					struct reset rst = {0};
-
-					rst.type = START_DEFAULT;
-					rst.next_app_data[0] = 17;
-					sys_reset(&rst, 1);
-				}
-
-				break;
-
-			case CMD_RESET:
-				assert(1 == 2);
-				break;
-
-			default:
-				// WTF?
-				assert(1 == 2);
-				break;
-			}
+			handle_command(pkt, pubkey);
+			break;
 		}
 	}
 }
