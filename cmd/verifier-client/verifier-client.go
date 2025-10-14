@@ -5,6 +5,7 @@ package main
 
 import (
 	"crypto/ed25519"
+	_ "embed"
 	"flag"
 	"fmt"
 	"os"
@@ -16,7 +17,7 @@ import (
 
 // nolint:typecheck // Avoid lint error when the embedding file is missing.
 //
-//go:embed verifier.bing
+//go:embed verifier.bin
 var verifierBinary []byte
 
 func updateApp(tk *tkeyclient.TillitisKey, appBin1 []byte, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
@@ -50,7 +51,7 @@ func updateApp(tk *tkeyclient.TillitisKey, appBin1 []byte, digest [blake2s.Size]
 func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
 	var secret []byte
 
-	err = tk.LoadApp(verifierBinary, secret)
+	err := tk.LoadApp(verifierBinary, secret)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
