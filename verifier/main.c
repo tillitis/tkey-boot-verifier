@@ -126,70 +126,84 @@ enum state {
 	STATE_STARTED = 0,
 	STATE_VERIFY_FLASH,
 	STATE_WAIT_FOR_COMMAND,
+	STATE_WAIT_FOR_APP_CHUNK,
 };
 
 // Context for the loading of a message
 struct context {
-	uint8_t pubkey[32];
+	uint32_t upload_size;
+	uint32_t upload_offset;
+	uint8_t app_digest[32];
+	uint8_t app_signature[64];
 };
 
-static void update_app(uint32_t upload_size, uint32_t upload_offset,
-		       uint8_t app_digest[32], uint8_t app_signature[64])
+static void wait_for_app_chunk(struct context *ctx)
 {
-	for (;;) {
-		struct packet pkt = {0};
-		uint8_t rsp[CMDLEN_MAXBYTES] = {0}; // Response
+	struct packet pkt = {0};
+	uint8_t rsp[CMDLEN_MAXBYTES] = {0}; // Response
 
-		if (read_command(&pkt.hdr, pkt.cmd) != 0) {
-			debug_puts("read_command returned != 0!\n");
+	assert(ctx != NULL);
+
+	if (read_command(&pkt.hdr, pkt.cmd) != 0) {
+		debug_puts("read_command returned != 0!\n");
+		assert(1 == 2);
+	}
+
+	switch (pkt.cmd[0]) {
+	case CMD_UPDATE_APP_CHUNK:
+		// Bad length
+		if (pkt.hdr.len != CMDLEN_MAXBYTES) {
 			assert(1 == 2);
 		}
 
-		switch (pkt.cmd[0]) {
-		case CMD_UPDATE_APP_CHUNK:
-			// Bad length
-			if (pkt.hdr.len != CMDLEN_MAXBYTES) {
-				assert(1 == 2);
-			}
+		assert(ctx->upload_size > ctx->upload_offset);
+		size_t data_len = MIN(ctx->upload_size - ctx->upload_offset,
+				      CHUNK_PAYLOAD_LEN);
 
-			assert(upload_size > upload_offset);
-			size_t data_len =
-			    MIN(upload_size - upload_offset, CHUNK_PAYLOAD_LEN);
-
-			if (write_app(upload_offset, &pkt.cmd[1], data_len) !=
-			    0) {
-				assert(1 == 2);
-			}
-
-			upload_offset += data_len;
-
-			rsp[0] = STATUS_OK;
-			appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
-
-			if (upload_offset >= upload_size) {
-				if (sys_preload_store_fin(upload_size,
-							  app_digest,
-							  app_signature) != 0) {
-					assert(1 == 2);
-				}
-
-				struct reset rst = {0};
-
-				rst.type = START_DEFAULT;
-				rst.next_app_data[0] = 17;
-				sys_reset(&rst, 1);
-			}
-
-			break;
-		default:
+		if (write_app(ctx->upload_offset, &pkt.cmd[1], data_len) != 0) {
 			assert(1 == 2);
 		}
+
+		ctx->upload_offset += data_len;
+
+		rsp[0] = STATUS_OK;
+		appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
+
+		if (ctx->upload_offset >= ctx->upload_size) {
+			if (sys_preload_store_fin(ctx->upload_size,
+						  ctx->app_digest,
+						  ctx->app_signature) != 0) {
+				assert(1 == 2);
+			}
+
+			struct reset rst = {0};
+
+			rst.type = START_DEFAULT;
+			rst.next_app_data[0] = 17;
+			sys_reset(&rst, 1);
+		}
+
+		break;
+
+	default:
+		assert(1 == 2);
 	}
 }
 
-void handle_command(struct packet pkt, uint8_t pubkey[32])
+enum state wait_for_command(enum state state, struct context *ctx,
+			    uint8_t pubkey[32])
 {
+	struct packet pkt = {0};
 	uint8_t rsp[CMDLEN_MAXBYTES] = {0}; // Response
+
+	assert(ctx != NULL);
+
+	led_set(LED_GREEN);
+
+	if (read_command(&pkt.hdr, pkt.cmd) != 0) {
+		debug_puts("read_command returned != 0!\n");
+		assert(1 == 2);
+	}
 
 	// Smallest possible payload length (cmd) is 1 byte.
 	switch (pkt.cmd[0]) {
@@ -205,10 +219,6 @@ void handle_command(struct packet pkt, uint8_t pubkey[32])
 	}
 
 	case CMD_UPDATE_APP_INIT: {
-		uint8_t app_digest[32] = {0};
-		uint8_t app_signature[64] = {0};
-		uint32_t upload_size = 0;
-		uint32_t upload_offset = 0;
 		uint32_t local_app_size = 0;
 
 		// Bad length
@@ -226,10 +236,11 @@ void handle_command(struct packet pkt, uint8_t pubkey[32])
 			assert(1 == 2);
 		}
 
-		upload_size = local_app_size;
-
-		memcpy(app_digest, &pkt.cmd[5], 32);
-		memcpy(app_signature, &pkt.cmd[37], 64);
+		ctx->upload_offset = 0;
+		ctx->upload_size = local_app_size;
+		memcpy(ctx->app_digest, &pkt.cmd[5], sizeof(ctx->app_digest));
+		memcpy(ctx->app_signature, &pkt.cmd[37],
+		       sizeof(ctx->app_signature));
 
 		if (sys_preload_delete() != 0) {
 			assert(1 == 2);
@@ -238,8 +249,7 @@ void handle_command(struct packet pkt, uint8_t pubkey[32])
 		rsp[0] = STATUS_OK;
 		appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
 
-		update_app(upload_offset, upload_size, app_digest,
-			   app_signature);
+		state = STATE_WAIT_FOR_APP_CHUNK;
 		break;
 	}
 
@@ -252,13 +262,15 @@ void handle_command(struct packet pkt, uint8_t pubkey[32])
 		assert(1 == 2);
 		break;
 	}
+
+	return state;
 }
 
 int main(void)
 {
+	struct context ctx = {0};
 	enum state state = STATE_STARTED;
 	uint8_t next_app_data[RESET_DATA_SIZE];
-	struct packet pkt = {0};
 
 	// Pubkey we got from tkeyimage
 	// 9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
@@ -307,14 +319,11 @@ int main(void)
 		}
 
 		case STATE_WAIT_FOR_COMMAND:
-			// started from client - wait for client data
-			led_set(LED_GREEN);
+			state = wait_for_command(state, &ctx, pubkey);
+			break;
 
-			if (read_command(&pkt.hdr, pkt.cmd) != 0) {
-				debug_puts("read_command returned != 0!\n");
-				assert(1 == 2);
-			}
-			handle_command(pkt, pubkey);
+		case STATE_WAIT_FOR_APP_CHUNK:
+			wait_for_app_chunk(&ctx);
 			break;
 		}
 	}
