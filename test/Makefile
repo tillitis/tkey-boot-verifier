@@ -28,6 +28,10 @@ TEST_CFILES= \
 
 all: tests/test_update tests/test_verify
 
+test: tests/test_update tests/test_verify
+	./tests/test_update
+	./tests/test_verify
+
 TEST_UPDATE_CFILES = tests/test_update.c $(TEST_CFILES) $(APPDIR)/update.c
 tests/test_update: $(TEST_UPDATE_CFILES) Makefile
 	$(CC) $(CFLAGS) $(TEST_UPDATE_CFILES) $(LDFLAGS) -o $@
