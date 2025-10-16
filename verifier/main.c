@@ -137,6 +137,38 @@ struct context {
 	uint8_t app_signature[64];
 };
 
+static enum state started(void)
+{
+	enum state state = STATE_STARTED;
+	uint8_t next_app_data[RESET_DATA_SIZE] = {0};
+
+	if (sys_reset_data(next_app_data) != 0) {
+		assert(1 == 2);
+	}
+
+	if (next_app_data[0] == 17) {
+		state = STATE_VERIFY_FLASH;
+	} else {
+		state = STATE_WAIT_FOR_COMMAND;
+	}
+
+	return state;
+}
+
+static void verify_flash(uint8_t pubkey[32])
+{
+	uint8_t app_digest[32] = {0};
+	uint8_t app_signature[64] = {0};
+
+	led_set(LED_BLUE);
+
+	if (sys_get_digsig(app_digest, app_signature) != 0) {
+		assert(1 == 2);
+	}
+
+	reset_if_verified(pubkey, START_FLASH1_VER, app_digest, app_signature);
+}
+
 static void wait_for_app_chunk(struct context *ctx)
 {
 	struct packet pkt = {0};
@@ -270,7 +302,6 @@ int main(void)
 {
 	struct context ctx = {0};
 	enum state state = STATE_STARTED;
-	uint8_t next_app_data[RESET_DATA_SIZE];
 
 	// Pubkey we got from tkeyimage
 	// 9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
@@ -289,32 +320,14 @@ int main(void)
 	config_endpoints(IO_CDC | IO_DEBUG);
 #endif
 
-	if (sys_reset_data(next_app_data) != 0) {
-		assert(1 == 2);
-	}
-
 	for (;;) {
 		switch (state) {
 		case STATE_STARTED:
-			if (next_app_data[0] == 17) {
-				state = STATE_VERIFY_FLASH;
-			} else {
-				state = STATE_WAIT_FOR_COMMAND;
-			}
+			state = started();
 			break;
 
 		case STATE_VERIFY_FLASH: {
-			uint8_t app_digest[32] = {0};
-			uint8_t app_signature[64] = {0};
-
-			led_set(LED_BLUE);
-
-			if (sys_get_digsig(app_digest, app_signature) != 0) {
-				return -1;
-			}
-
-			reset_if_verified(pubkey, START_FLASH1_VER, app_digest,
-					  app_signature);
+			verify_flash(pubkey);
 			break;
 		}
 
