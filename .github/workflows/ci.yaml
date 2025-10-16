@@ -27,6 +27,9 @@ jobs:
       - name: make
         run: ./build.sh
 
+      - name: test
+        run: make -C test test clean
+
   reuse-compliance-check:
     runs-on: ubuntu-latest
     steps:
