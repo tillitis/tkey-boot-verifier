@@ -123,7 +123,7 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 }
 
 enum state {
-	STATE_INIT = 0,
+	STATE_STARTED = 0,
 	STATE_VERIFY_FLASH,
 	STATE_WAIT_FOR_COMMAND,
 };
@@ -256,7 +256,7 @@ void handle_command(struct packet pkt, uint8_t pubkey[32])
 
 int main(void)
 {
-	enum state state = STATE_INIT;
+	enum state state = STATE_STARTED;
 	uint8_t next_app_data[RESET_DATA_SIZE];
 	struct packet pkt = {0};
 
@@ -283,7 +283,7 @@ int main(void)
 
 	for (;;) {
 		switch (state) {
-		case STATE_INIT:
+		case STATE_STARTED:
 			if (next_app_data[0] == 17) {
 				state = STATE_VERIFY_FLASH;
 			} else {
