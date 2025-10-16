@@ -7,7 +7,6 @@
 #include <tkey/debug.h>
 #include <tkey/led.h>
 #include <tkey/lib.h>
-#include <tkey/platform.h>
 #include <tkey/proto.h>
 #include <tkey/syscall.h>
 #include <tkey/tk1_mem.h>
@@ -25,6 +24,7 @@ static volatile uint32_t *cpu_mon_last  = (volatile uint32_t *) TK1_MMIO_TK1_CPU
 static volatile uint32_t *ver		= (volatile uint32_t *) TK1_MMIO_TK1_VERSION;
 // clang-format on
 
+#define TKEY_VERSION_CASTOR 6
 #define MIN(a, b) ((a) <= (b) ? (a) : (b))
 
 #define CHUNK_PAYLOAD_LEN (CMDLEN_MAXBYTES - 1)

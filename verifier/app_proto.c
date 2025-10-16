@@ -3,10 +3,11 @@
 
 #include <tkey/assert.h>
 #include <tkey/debug.h>
-#include <tkey/platform.h>
 #include <tkey/tk1_mem.h>
 
 #include "app_proto.h"
+
+#define TKEY_VERSION_CASTOR 6
 
 // clang-format off
 static volatile uint32_t *ver		= (volatile uint32_t *) TK1_MMIO_TK1_VERSION;
