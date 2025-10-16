@@ -65,7 +65,7 @@ check:
 
 .PHONY: verifier-client
 verifier-client:
-	go build ./cmd/verifier-client
+	go build -trimpath -buildvcs=false ./cmd/verifier-client
 
 # Simple ed25519 verifier app
 VERIFIEROBJS=verifier/main.o verifier/verify.o verifier/app_proto.o \
