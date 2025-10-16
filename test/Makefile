@@ -11,6 +11,7 @@ CMOCKA_CONFIG = \
 
 CFLAGS = \
 	-static -std=gnu99 -O2 -g -Wall -Werror=implicit-function-declaration \
+	-Wno-incompatible-library-redeclaration \
 	-I lib/cmocka/include -I $(LIBDIR) -I $(LIBDIR)/include \
 	$(CMOCKA_CONFIG) \
 
