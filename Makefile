@@ -33,7 +33,7 @@ LDFLAGS=-T $(LIBDIR)/app.lds -L $(LIBDIR) -lcommon -lcrt0 -lmonocypher -lsyscall
 
 
 .PHONY: all
-all: cmd/verifier-client/verifier.bin verifier/app.bin check-verifier-hash verifier-client
+all: verifier/app.bin check-verifier-hash verifier-client
 
 # Create compile_commands.json for clangd and LSP
 .PHONY: clangd
@@ -64,7 +64,7 @@ check:
 	clang-tidy -header-filter=.* -checks=cert-* verifier/*.[ch] -- $(CFLAGS)
 
 .PHONY: verifier-client
-verifier-client:
+verifier-client: cmd/verifier-client/verifier.bin
 	go build -trimpath -buildvcs=false ./cmd/verifier-client
 
 # Simple ed25519 verifier app
