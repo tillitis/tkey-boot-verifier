@@ -161,3 +161,28 @@ to start slot 1.
     WAIT_FOR_APP_CHUNK --> BOOT: Last CMD_UPDATE_APP_CHUNK
     BOOT --> [*]
   ```
+
+## Licenses and SPDX tags
+
+Unless otherwise noted, the project sources are copyright Tillitis AB,
+licensed under the terms and conditions of the "BSD-2-Clause" license.
+See [LICENSE](LICENSE) for the full license text.
+
+External source code we have imported are isolated in their own
+directories. They may be released under other licenses. This is noted
+with a similar `COPYING`/`LICENSE` file in every directory containing
+imported sources.
+
+The project uses single-line references to Unique License Identifiers
+as defined by the Linux Foundation's [SPDX project](https://spdx.org/)
+on its own source files, but not necessarily imported files. The line
+in each individual source file identifies the license applicable to
+that file.
+
+The current set of valid, predefined SPDX identifiers can be found on
+the SPDX License List at:
+
+https://spdx.org/licenses/
+
+We attempt to follow the [REUSE
+specification](https://reuse.software/).
