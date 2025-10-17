@@ -61,7 +61,7 @@ func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, digest [blake2s.Si
 	}
 
 	// Wait for TKey to reset
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 
 	devPath, err := tkeyclient.DetectSerialPort(true)
 	if err != nil {
