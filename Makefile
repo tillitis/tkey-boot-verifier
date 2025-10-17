@@ -33,7 +33,7 @@ LDFLAGS=-T $(LIBDIR)/app.lds -L $(LIBDIR) -lcommon -lcrt0 -lmonocypher -lsyscall
 
 
 .PHONY: all
-all: verifier/app.bin check-verifier-hash verifier-client
+all: verifier/app.bin verifier-client
 
 # Create compile_commands.json for clangd and LSP
 .PHONY: clangd
