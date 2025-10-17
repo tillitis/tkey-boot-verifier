@@ -77,6 +77,8 @@ $(VERIFIEROBJS): $(INCLUDE)/tkey/tk1_mem.h
 .PHONY: clean
 clean:
 	rm -f verifier-client verifier/app.bin verifier/app.elf $(VERIFIEROBJS)
+	rm -f cmd/verifier-client/verifier.bin
+	make -C test clean
 
 # Uses ../.clang-format
 FMTFILES=verifier/*.[ch]
