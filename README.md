@@ -2,76 +2,43 @@
 
 **WARNING**: Work in progress!
 
-tkey-boot-verifier is a second boot stage for the Tillitis TKey. It
-verifies the next app to start and leaves a seed to the second app
-that can be used as base for key material. This way, we combine the
-TKey's ordinary measured boot with verified boot and makes it possible
-to upgrade the second app without losing key material.
+The TKey boot verifier is a boot stage for the Tillitis TKey. With the
+support of the TKey firmware it implements a combination of measured
+boot and verified boot which makes it possible to upgrade the verified
+app without losing data, including the cryptographic keys.
 
-tkey-boot-verifier can start either from slot 0 in flash or be fed to
-the TKey by a client app.
+The boot verifier can start either from slot 0 in flash or be loaded
+by a client app.
 
-## Start from flash
+See [the design document](doc/design.md) for more.
 
-```mermaid
-flowchart TD
-  A(Firmware) -->|slot 0| B(Verifier)
-  A(Firmware) -->|slot 1| C(App in slot 1)
-  B  -->|reset| A
-```
+## Status
 
-This is the goal of the verifier and how it should work when
-development is finished. Currently it behaves like this after you have
-used `verifier-client -cmd install`. For test purposes, however, it
-currently waits for commands from the client after power cycling.
+For test purposes the boot verifier currently waits for commands from the
+client after power cycling. You can talk to it with `verifier-client`.
 
-Firmware checks `resetinfo` for what to do: Default is to start the
-app in slot 0.
+It currently supports:
 
-tkey-boot-verifier resides in slot 0. It reads the app digest of slot
-1 and the vendor signature of it from the filesystem and verifies the
-signature. If the signature verifies, it resets to firmware,
-signalling to firmware through `resetinfo` that it should load an app
-from slot 1 only if it has the exact digest it just verified.
+- verifying an app from the client. Your client app will typically
+  first load the boot verifier, then resetting and loading another
+  app. See the `boot` command in `verifier-client`. Note that this
+  needs a Castor TKey using the `defaultapp` in slot 0, which makes it
+  reset to firmware, waiting for commands from the client.
 
-Firmware starts again, now loading the app from slot 1. If the
-computed digest of the app is correct it starts it.
+- installing a device app in slot 1. See the `install` command. This,
+  on the other hand, needs a running boot verifier to talk to. The
+  boot verifier *must* be installed in slot 0 and its digest noted in
+  firmware, since it needs privileged access to the filesystem to be
+  able to install apps. See Produce flash image below.
 
-## Start from client
-
-```mermaid
-flowchart TD
-
-  A(client) -->|1. load verifier| B(Firmware)
-  B -->|2. measure & start| D(verifier)
-  A -->|3. digest & signature | D
-  D -->|4. reset| B
-  A -->|5. load second| B
-  B -->|6. correct digest? | E(second app)
-```
-
-The above diagram assumes that the firmware is running in a state
-where it is waiting for commands from a client. This will not really
-be the case in the coming Castor version of the TKey, but simplified
-here to better explain the verifier's role.
-
-1. The client loads the verifier.
-2. Firmware measures and starts verifier.
-3. Client sends the digest and signature of the next app.
-4. verifier verifies the signature over the digest. If it verifies, it
-   sends the digest to the firmware and resets the TKey, making
-   firmware start again.
-5. Client loads the next app.
-6. Firmware measures the next app. If it has the correct, already
-   verified digest, it starts it.
-
-The coming Castor will be slightly more complicated since it will also
-require the client to tell the running device app to reset at first.
+  Right now it automatically resets to start the boot verifier again
+  when installation has finished, then it verifies and starts the app
+  in slot 1.
 
 ## Build
 
 To build both client app, `verifier-client`, and the device app,
-`verifier`, run:
+`boot verifier`, run:
 
 ```
 ./build.sh
@@ -79,7 +46,7 @@ To build both client app, `verifier-client`, and the device app,
 
 ## Use
 
-For all uses of the verifier, you need to build [a current Castor
+For all uses of the boot verifier, you need to build [a current Castor
 TKey](https://github.com/tillitis/tillitis-key1) which by default uses
 the `defaultapp` in slot 0. Flash it on a TKey Unlocked with the TKey
 Programmer Board. Buy here:
@@ -93,12 +60,12 @@ to update the USB controller firmware to Castor.
 See [TKey Developer
 Handbook](https://dev.tillitis.se/castor/unlocked/) for instructions.
 
-The verifier can be placed on flash, typically slot 0, then verifying
+The boot verifier can be placed on flash, typically slot 0, then verifying
 slot 1, or loaded by a client app, followed by the app to be verified.
 
 ### Produce flash image
 
-To install the verifier on the flash, use the `tkeyimage` tool in
+To install the boot verifier on the flash, use the `tkeyimage` tool in
 [tillitis-key1](https://github.com/tillitis/tillitis-key1). Typically:
 
 ```
@@ -108,7 +75,7 @@ $ ./tools/tkeyimage/tkeyimage -f -app0 verifier.bin -o flash_image.bin
 $ make FLASH_APP_0=verifier.bin prog_flash
 ```
 
-You will now have a verifier in app slot 0. In the current state of
+You will now have a boot verifier in app slot 0. In the current state of
 development it will wait for commands from the client after starting.
 This is not the end goal, but sufficient for development.
 
@@ -127,23 +94,18 @@ typically means a Castor prototype with the `defaultapp` in app slot
 0.
 
 Command `install` installs the device app specified with `-app` in
-slot 1. It assumes you are running a verifier from slot 0 which is
+slot 1. It assumes you are running a boot verifier from slot 0 which is
 waiting for commands from the client. See above about producing a
 flash image for this use case. It will automatically reset the TKey
-after installing, telling firmware to start the verifier on flash,
+after installing, telling firmware to start the boot verifier on flash,
 which will then verify slot 1's digest and reset again to ask firmware
 to start slot 1.
 
 ## TODO
 
-- Change default behaviour of verifier to always start app slot 1,
-  instead of waiting for commands.
+- Change default behaviour of boot verifier to always start app slot
+  1, instead of waiting for commands.
   
-- Investigate what to mix in for the seed for the next app. At least
-  mix in a name of the app, so not all device apps verified by the
-  verifier get the same seed. Mix in the pubkey (too?), so the seed is
-  always dependent on the vendor.
-
 - When installing an app in slot 1, always reset digest and signature
   first, and detect it on start, so we can resume a botched
   installation.

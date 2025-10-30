@@ -15,6 +15,7 @@ path = [
      "Makefile",
      "README.md",
      "RELEASE.md",
+     "doc/design.md",
      "go.mod",
      "go.sum",
      "verifier/app.bin.sha512",
