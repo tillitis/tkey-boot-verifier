@@ -33,7 +33,11 @@ LDFLAGS=-T $(LIBDIR)/app.lds -L $(LIBDIR) -lcommon -lcrt0 -lmonocypher -lsyscall
 
 
 .PHONY: all
-all: verifier/app.bin verifier-client
+all: \
+    verifier/app.bin \
+    verifier-client \
+    testapp/app_a.bin \
+    testapp/app_b.bin \
 
 # Create compile_commands.json for clangd and LSP
 .PHONY: clangd
@@ -74,14 +78,24 @@ verifier/app.elf: $(VERIFIEROBJS)
 	$(CC) $(CFLAGS) $(VERIFIEROBJS) $(LDFLAGS) -I $(LIBDIR) -o $@
 $(VERIFIEROBJS): $(INCLUDE)/tkey/tk1_mem.h
 
+TESTAPPOBJS=testapp/main.o
+testapp/app_a.elf: $(TESTAPPOBJS) testapp/app_a.c
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) -I $(LIBDIR) -o $@
+testapp/app_b.elf: $(TESTAPPOBJS) testapp/app_b.c
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) -I $(LIBDIR) -o $@
+$(TESTAPPOBJS): $(INCLUDE)/tkey/tk1_mem.h
+
 .PHONY: clean
 clean:
 	rm -f verifier-client verifier/app.bin verifier/app.elf $(VERIFIEROBJS)
 	rm -f cmd/verifier-client/verifier.bin
 	make -C test clean
+	rm -f $(TESTAPPOBJS)
+	rm -f testapp/app_a.bin testapp/app_a.elf
+	rm -f testapp/app_b.bin testapp/app_b.elf
 
 # Uses ../.clang-format
-FMTFILES=verifier/*.[ch]
+FMTFILES=verifier/*.[ch] testapp/*.[ch]
 
 .PHONY: fmt
 fmt:
