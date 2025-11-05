@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Tillitis AB <tillitis.se>
 // SPDX-License-Identifier: BSD-2-Clause
 
-#ifndef APP_UPDATE_H
-#define APP_UPDATE_H
+#ifndef UPDATE_H
+#define UPDATE_H
 
 #include <stdbool.h>
 #include <stddef.h>
