@@ -91,6 +91,7 @@ func usage() {
 func main() {
 	cmd := flag.String("cmd", "", "Command")
 	appPath := flag.String("app", "", "Path to app")
+	port := flag.String("port", "", "TKey serial port")
 	flag.Usage = usage
 
 	flag.Parse()
@@ -116,10 +117,13 @@ func main() {
 
 	tkeyclient.SilenceLogging()
 
-	devPath, err := tkeyclient.DetectSerialPort(true)
-	if err != nil {
-		fmt.Printf("couldn't find any TKeys\n")
-		os.Exit(1)
+	devPath := *port
+	if devPath == "" {
+		devPath, err = tkeyclient.DetectSerialPort(true)
+		if err != nil {
+			fmt.Printf("couldn't find any TKeys\n")
+			os.Exit(1)
+		}
 	}
 
 	tk := tkeyclient.New()
