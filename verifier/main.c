@@ -25,7 +25,6 @@ static volatile uint32_t *ver		= (volatile uint32_t *) TK1_MMIO_TK1_VERSION;
 // clang-format on
 
 #define TKEY_VERSION_CASTOR 6
-#define MIN(a, b) ((a) <= (b) ? (a) : (b))
 
 #define CHUNK_PAYLOAD_LEN (CMDLEN_MAXBYTES - 1)
 
@@ -129,13 +128,6 @@ enum state {
 	STATE_WAIT_FOR_APP_CHUNK,
 };
 
-struct update_ctx {
-	size_t upload_size;
-	size_t upload_offset;
-	uint8_t app_digest[32];
-	uint8_t app_signature[64];
-};
-
 // Context for the loading of a message
 struct context {
 	struct update_ctx update_ctx;
@@ -192,33 +184,20 @@ static void wait_for_app_chunk(struct context *ctx)
 			assert(1 == 2);
 		}
 
-		assert(ctx->update_ctx.upload_size >
-		       ctx->update_ctx.upload_offset);
-		size_t data_len = MIN(ctx->update_ctx.upload_size -
-					  ctx->update_ctx.upload_offset,
-				      CHUNK_PAYLOAD_LEN);
-
-		if (write_app(ctx->update_ctx.upload_offset, &pkt.cmd[1],
-			      data_len) != 0) {
+		if (update_write(&ctx->update_ctx, &pkt.cmd[1],
+				 CHUNK_PAYLOAD_LEN) != 0) {
 			assert(1 == 2);
 		}
-
-		ctx->update_ctx.upload_offset += data_len;
 
 		rsp[0] = STATUS_OK;
 		appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
 
-		if (ctx->update_ctx.upload_offset >=
-		    ctx->update_ctx.upload_size) {
-			if (sys_preload_store_fin(
-				ctx->update_ctx.upload_size,
-				ctx->update_ctx.app_digest,
-				ctx->update_ctx.app_signature) != 0) {
+		if (update_app_is_written(&ctx->update_ctx)) {
+			if (update_finalize(&ctx->update_ctx) != 0) {
 				assert(1 == 2);
 			}
 
 			struct reset rst = {0};
-
 			rst.type = START_DEFAULT;
 			rst.next_app_data[0] = 17;
 			sys_reset(&rst, 1);
@@ -260,7 +239,7 @@ enum state wait_for_command(enum state state, struct context *ctx,
 	}
 
 	case CMD_UPDATE_APP_INIT: {
-		uint32_t local_app_size = 0;
+		uint32_t app_size = 0;
 
 		// Bad length
 		if (pkt.hdr.len != CMDLEN_MAXBYTES) {
@@ -269,22 +248,13 @@ enum state wait_for_command(enum state state, struct context *ctx,
 
 		// size, digest, signature
 		// cmd[1..4] contains the size.
-		local_app_size = pkt.cmd[1] + (pkt.cmd[2] << 8) +
-				 (pkt.cmd[3] << 16) + (pkt.cmd[4] << 24);
+		app_size = pkt.cmd[1] + (pkt.cmd[2] << 8) + (pkt.cmd[3] << 16) +
+			   (pkt.cmd[4] << 24);
+		uint8_t *app_digest = &pkt.cmd[5];
+		uint8_t *app_signature = &pkt.cmd[37];
 
-		if (local_app_size == 0 || local_app_size > TK1_APP_MAX_SIZE) {
-			debug_puts("Message size not within range!\n");
-			assert(1 == 2);
-		}
-
-		ctx->update_ctx.upload_offset = 0;
-		ctx->update_ctx.upload_size = local_app_size;
-		memcpy(ctx->update_ctx.app_digest, &pkt.cmd[5],
-		       sizeof(ctx->update_ctx.app_digest));
-		memcpy(ctx->update_ctx.app_signature, &pkt.cmd[37],
-		       sizeof(ctx->update_ctx.app_signature));
-
-		if (sys_preload_delete() != 0) {
+		if (update_init(&ctx->update_ctx, app_size, app_digest,
+				app_signature) != 0) {
 			assert(1 == 2);
 		}
 
