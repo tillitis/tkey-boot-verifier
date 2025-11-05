@@ -129,12 +129,16 @@ enum state {
 	STATE_WAIT_FOR_APP_CHUNK,
 };
 
-// Context for the loading of a message
-struct context {
-	uint32_t upload_size;
-	uint32_t upload_offset;
+struct update_ctx {
+	size_t upload_size;
+	size_t upload_offset;
 	uint8_t app_digest[32];
 	uint8_t app_signature[64];
+};
+
+// Context for the loading of a message
+struct context {
+	struct update_ctx update_ctx;
 };
 
 static enum state started(void)
@@ -188,23 +192,28 @@ static void wait_for_app_chunk(struct context *ctx)
 			assert(1 == 2);
 		}
 
-		assert(ctx->upload_size > ctx->upload_offset);
-		size_t data_len = MIN(ctx->upload_size - ctx->upload_offset,
+		assert(ctx->update_ctx.upload_size >
+		       ctx->update_ctx.upload_offset);
+		size_t data_len = MIN(ctx->update_ctx.upload_size -
+					  ctx->update_ctx.upload_offset,
 				      CHUNK_PAYLOAD_LEN);
 
-		if (write_app(ctx->upload_offset, &pkt.cmd[1], data_len) != 0) {
+		if (write_app(ctx->update_ctx.upload_offset, &pkt.cmd[1],
+			      data_len) != 0) {
 			assert(1 == 2);
 		}
 
-		ctx->upload_offset += data_len;
+		ctx->update_ctx.upload_offset += data_len;
 
 		rsp[0] = STATUS_OK;
 		appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
 
-		if (ctx->upload_offset >= ctx->upload_size) {
-			if (sys_preload_store_fin(ctx->upload_size,
-						  ctx->app_digest,
-						  ctx->app_signature) != 0) {
+		if (ctx->update_ctx.upload_offset >=
+		    ctx->update_ctx.upload_size) {
+			if (sys_preload_store_fin(
+				ctx->update_ctx.upload_size,
+				ctx->update_ctx.app_digest,
+				ctx->update_ctx.app_signature) != 0) {
 				assert(1 == 2);
 			}
 
@@ -268,11 +277,12 @@ enum state wait_for_command(enum state state, struct context *ctx,
 			assert(1 == 2);
 		}
 
-		ctx->upload_offset = 0;
-		ctx->upload_size = local_app_size;
-		memcpy(ctx->app_digest, &pkt.cmd[5], sizeof(ctx->app_digest));
-		memcpy(ctx->app_signature, &pkt.cmd[37],
-		       sizeof(ctx->app_signature));
+		ctx->update_ctx.upload_offset = 0;
+		ctx->update_ctx.upload_size = local_app_size;
+		memcpy(ctx->update_ctx.app_digest, &pkt.cmd[5],
+		       sizeof(ctx->update_ctx.app_digest));
+		memcpy(ctx->update_ctx.app_signature, &pkt.cmd[37],
+		       sizeof(ctx->update_ctx.app_signature));
 
 		if (sys_preload_delete() != 0) {
 			assert(1 == 2);
