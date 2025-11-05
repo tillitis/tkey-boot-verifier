@@ -300,6 +300,9 @@ enum state wait_for_command(enum state state, struct context *ctx,
 
 int main(void)
 {
+	debug_puts("verifier");
+	debug_lf();
+
 	struct context ctx = {0};
 	enum state state = STATE_STARTED;
 
