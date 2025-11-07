@@ -1,8 +1,14 @@
 // SPDX-FileCopyrightText: 2025 Tillitis AB <tillitis.se>
 // SPDX-License-Identifier: BSD-2-Clause
 
+// clang-format off
+#include <stdarg.h>
 #include <stddef.h>
+#include <setjmp.h>
 #include <stdint.h>
+#include <cmocka.h> // cmocka need to be included last
+// clang-format on
+
 #include <string.h>
 #include <tkey/syscall.h>
 
@@ -83,6 +89,10 @@ bool fakesys_preload_range_contains_ff(uint32_t start, uint32_t stop)
 
 	for (size_t i = start; i < stop; i++) {
 		if (app_slot_1[i] != 0xff) {
+			cm_print_error(
+			    "app slot differs at offset: %lu, expected: "
+			    "0xff, got: %u\n",
+			    i, state.app[i]);
 			return false;
 		}
 	}
@@ -110,6 +120,10 @@ bool fakesys_preload_range_contains_data(uint32_t offset, void *data,
 		uint8_t expected = *(((uint8_t *)data) + i);
 
 		if (app_slot_1[i] != expected) {
+			cm_print_error(
+			    "app slot differs at offset: %lu, expected: "
+			    "%u, got: %u\n",
+			    i, expected, state.app[i]);
 			return false;
 		}
 	}
