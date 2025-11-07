@@ -19,10 +19,12 @@
 static void test_write_app_can_write_app_to_erased_slot(void **state);
 static void test_write_app_should_only_write_app(void **state);
 static void test_write_app_should_fail_when_app_is_too_large(void **state);
+static void test_update_can_update_app(void **state);
 
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
+	    cmocka_unit_test(test_update_can_update_app),
 	    cmocka_unit_test(test_write_app_can_write_app_to_erased_slot),
 	    cmocka_unit_test(test_write_app_should_only_write_app),
 	    cmocka_unit_test(test_write_app_should_fail_when_app_is_too_large),
@@ -48,6 +50,45 @@ int generate_app(void *dst, size_t dst_size, size_t app_len)
 	memset(dst, 0xA0, app_len);
 
 	return 0;
+}
+
+static void test_update_can_update_app(void **state)
+{
+	const size_t APP_SIZE = MAX_APP_SIZE;
+	const size_t WRITE_SIZE = 127;
+	uint8_t app_buf[MAX_APP_SIZE + 127] = {0};
+	_Static_assert(sizeof(app_buf) >= APP_SIZE + WRITE_SIZE,
+		       "app_buf must hold enough data for all writes");
+
+	// Arrange
+	fakesys_preload_erase();
+	generate_app(app_buf, sizeof(app_buf), APP_SIZE);
+	uint8_t app_digest[32] = {0};
+	uint8_t app_signature[64] = {0};
+	struct update_ctx ctx = {0};
+
+	// Act and assert...
+	int ret = 0;
+	ret = update_init(&ctx, APP_SIZE, app_digest, app_signature);
+	assert_int_equal(ret, 0);
+	assert_false(update_app_is_written(&ctx));
+
+	size_t offset = 0;
+	while (offset < APP_SIZE - WRITE_SIZE) {
+		ret = update_write(&ctx, &app_buf[offset], WRITE_SIZE);
+		assert_int_equal(ret, 0);
+		assert_false(update_app_is_written(&ctx));
+		offset += WRITE_SIZE;
+	}
+
+	ret = update_write(&ctx, &app_buf[offset], WRITE_SIZE);
+	assert_int_equal(ret, 0);
+	assert_true(update_app_is_written(&ctx));
+
+	ret = update_finalize(&ctx);
+	assert_int_equal(ret, 0);
+
+	assert_true(fakesys_preload_range_contains_data(0, app_buf, APP_SIZE));
 }
 
 static void test_write_app_can_write_app_to_erased_slot(void **state)

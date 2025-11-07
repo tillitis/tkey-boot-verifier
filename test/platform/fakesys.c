@@ -19,6 +19,7 @@
 struct state {
 	uint8_t digest[32];
 	uint8_t signature[64];
+	uint32_t app_size;
 	uint8_t app[APP_SLOT_1_SIZE];
 };
 
@@ -36,6 +37,18 @@ void fakesys_set_digsig(uint8_t digest[32], uint8_t signature[64])
 {
 	memcpy(state.digest, digest, sizeof(state.digest));
 	memcpy(state.signature, signature, sizeof(state.signature));
+}
+
+int sys_preload_delete(void)
+{
+	uint8_t digest[32] = {0};
+	uint8_t signature[64] = {0};
+
+	state.app_size = 0;
+	fakesys_set_digsig(digest, signature);
+	memset(state.app, 0xff, sizeof(state.app));
+
+	return 0;
 }
 
 int sys_preload_store(uint32_t offset, void *app, size_t len)
@@ -64,9 +77,24 @@ int sys_preload_store(uint32_t offset, void *app, size_t len)
 	return 0;
 }
 
+int sys_preload_store_fin(size_t len, uint8_t digest[32], uint8_t signature[64])
+{
+	if (len == 0 || len > sizeof(state.app)) {
+		return -1;
+	}
+
+	fakesys_set_digsig(digest, signature);
+	state.app_size = len;
+
+	return 0;
+}
+
 void fakesys_preload_erase(void)
 {
-	memset(&state.app_size, 0xff, sizeof(state.app_size));
+	memset(state.digest, 0, sizeof(state.digest));
+	memset(state.signature, 0, sizeof(state.signature));
+	state.app_size = 0;
+	memset(state.app, 0xff, sizeof(state.app));
 }
 
 bool fakesys_preload_range_contains_ff(uint32_t start, uint32_t stop)
