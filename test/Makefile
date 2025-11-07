@@ -26,15 +26,23 @@ TEST_CFILES= \
 	$(LIBDIR)/monocypher/monocypher.c \
 	$(LIBDIR)/monocypher/monocypher-ed25519.c \
 
-all: tests/test_update tests/test_verify
+all: tests/test_update tests/test_update_order tests/test_verify
 
-test: tests/test_update tests/test_verify
+test: tests/test_update tests/test_update_order tests/test_verify
 	./tests/test_update
+	./tests/test_update_order
 	./tests/test_verify
 
 TEST_UPDATE_CFILES = tests/test_update.c $(TEST_CFILES) $(APPDIR)/update.c
 tests/test_update: $(TEST_UPDATE_CFILES) Makefile
 	$(CC) $(CFLAGS) $(TEST_UPDATE_CFILES) $(LDFLAGS) -o $@
+
+TEST_UPDATE_ORDER_CFILES = tests/test_update_order.c $(TEST_CFILES) $(APPDIR)/update.c
+tests/test_update_order: LDFLAGS += -Wl,--wrap=sys_preload_delete
+tests/test_update_order: LDFLAGS += -Wl,--wrap=sys_preload_store
+tests/test_update_order: LDFLAGS += -Wl,--wrap=sys_preload_store_fin
+tests/test_update_order: $(TEST_UPDATE_ORDER_CFILES) Makefile
+	$(CC) $(CFLAGS) $(TEST_UPDATE_ORDER_CFILES) $(LDFLAGS) -o $@
 
 TEST_VERIFY_CFILES = tests/test_verify.c $(TEST_CFILES) $(APPDIR)/verify.c
 tests/test_verify: $(TEST_VERIFY_CFILES) Makefile
@@ -51,4 +59,6 @@ checkfmt:
 
 .PHONY: clean
 clean:
-	rm -f tests/test_update tests/test_verify
+	rm -f tests/test_update
+	rm -f tests/test_update_order
+	rm -f tests/test_verify
