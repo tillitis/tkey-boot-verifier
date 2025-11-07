@@ -51,7 +51,9 @@ int sys_preload_store(uint32_t offset, void *app, size_t len)
 		return -1;
 	}
 
-	memcpy(app_slot_1 + offset, app, len);
+	for (size_t i = 0; i < len; i++) {
+		app_slot_1[offset + i] &= ((uint8_t *)app)[i];
+	}
 
 	return 0;
 }
