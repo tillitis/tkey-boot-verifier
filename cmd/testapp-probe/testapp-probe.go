@@ -20,7 +20,7 @@ func usage() {
 func main() {
 	var err error
 
-	cmd := flag.String("cmd", "", "Command. One of: reset")
+	cmd := flag.String("cmd", "", "Command. One of: reset, get-cdi")
 	port := flag.String("port", "", "TKey serial port")
 	fwResType := flag.Int("fw-reset-type", 0, "Firmware reset type. Integer")
 	verifierResetDst := flag.Int("verifier-reset-dst", 0, "Verifier reset dst. Integer")
@@ -58,6 +58,15 @@ func main() {
 	}
 
 	switch *cmd {
+	case "get-cdi":
+		cdi, err := getCDI(tk)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("%s\n", cdi)
+
 	case "reset":
 		rstType, err := fwResetTypeFromInt(*fwResType)
 		if err != nil {
