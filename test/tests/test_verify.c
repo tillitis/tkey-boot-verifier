@@ -41,10 +41,15 @@ static const uint8_t PUBKEY[32] = {
     0x41, 0x94, 0xe5, 0x51, 0x64, 0xd3, 0x25, 0xeb, 0x9c, 0xdc, 0xc1,
     0x0d, 0xdd, 0xa7, 0xd1, 0x0a, 0xde, 0x4f, 0xbd, 0x8f, 0x6d,
 };
-static const uint8_t DIGEST[32] = {
+static const uint8_t APP_DIGEST[32] = {
     0x95, 0x3f, 0xc8, 0x8f, 0xc7, 0x61, 0x20, 0x06, 0x04, 0x63, 0x22,
     0xc6, 0xa1, 0x99, 0xb9, 0x59, 0xd3, 0xb4, 0xb2, 0xea, 0xdf, 0x71,
     0x1f, 0x71, 0xb2, 0xf8, 0x10, 0x0b, 0xd8, 0x78, 0x9e, 0xc2,
+};
+static const uint8_t PUBKEY_DIGEST[32] = {
+    0xc0, 0x12, 0xc3, 0xf2, 0x1e, 0x21, 0x74, 0xe5, 0xfc, 0xae, 0x71,
+    0x21, 0x44, 0x86, 0x1f, 0x2b, 0x61, 0x20, 0x07, 0x5d, 0x1a, 0xce,
+    0xe1, 0xc1, 0xac, 0xde, 0x11, 0x6f, 0x1c, 0xae, 0xf6, 0xb6,
 };
 
 int __wrap_sys_reset(struct reset *rst, size_t len)
@@ -60,17 +65,22 @@ static void test_should_boot_verified_flash_app_1(void **state)
 	uint8_t signature[64];
 	uint8_t pubkey[32];
 	uint8_t digest[32];
+	uint8_t pubkey_digest[32];
 
 	memcpy(signature, SIGNATURE, sizeof(signature));
 	memcpy(pubkey, PUBKEY, sizeof(pubkey));
-	memcpy(digest, DIGEST, sizeof(digest));
+	memcpy(digest, APP_DIGEST, sizeof(digest));
+	memcpy(pubkey_digest, PUBKEY_DIGEST, sizeof(pubkey_digest));
 
 	fakesys_set_digsig(digest, signature);
 
 	struct reset expected_reset = {0};
 	expected_reset.type = START_FLASH1_VER;
-	memcpy(expected_reset.app_digest, DIGEST,
+	expected_reset.mask = RESET_SEED;
+	memcpy(expected_reset.app_digest, APP_DIGEST,
 	       sizeof(expected_reset.app_digest));
+	memcpy(expected_reset.measured_id_seed, PUBKEY_DIGEST,
+	       sizeof(expected_reset.measured_id_seed));
 	memset(expected_reset.next_app_data, 0,
 	       sizeof(expected_reset.next_app_data));
 
@@ -89,7 +99,7 @@ static void test_should_not_boot_non_verified_flash_app_1(void **state)
 
 	memcpy(signature, INVALID_SIGNATURE, sizeof(signature));
 	memcpy(pubkey, PUBKEY, sizeof(pubkey));
-	memcpy(digest, DIGEST, sizeof(digest));
+	memcpy(digest, APP_DIGEST, sizeof(digest));
 
 	fakesys_set_digsig(digest, signature);
 
