@@ -4,6 +4,7 @@
 #include <tkey/assert.h>
 #include <tkey/debug.h>
 #include <tkey/led.h>
+#include <tkey/lib.h>
 #include <tkey/syscall.h>
 #include <tkey/tk1_mem.h>
 
@@ -13,10 +14,13 @@
 // clang-format off
 static volatile uint32_t *app_addr      = (volatile uint32_t *) TK1_MMIO_TK1_APP_ADDR;
 static volatile uint32_t *app_size      = (volatile uint32_t *) TK1_MMIO_TK1_APP_SIZE;
+static volatile uint32_t *cdi           = (volatile uint32_t *) TK1_MMIO_TK1_CDI_FIRST;
 static volatile uint32_t *cpu_mon_ctrl  = (volatile uint32_t *) TK1_MMIO_TK1_CPU_MON_CTRL;
 static volatile uint32_t *cpu_mon_first = (volatile uint32_t *) TK1_MMIO_TK1_CPU_MON_FIRST;
 static volatile uint32_t *cpu_mon_last  = (volatile uint32_t *) TK1_MMIO_TK1_CPU_MON_LAST;
 // clang-format on
+
+#define CDI_SIZE 32
 
 extern const uint8_t app_led_color;
 extern const uint8_t app_name0[4];
@@ -59,11 +63,28 @@ void reset(uint32_t type, enum bv_nad reset_dst)
 
 static enum state started_commands(enum state state, struct packet pkt)
 {
+	uint8_t rsp[CMDLEN_MAXBYTES] = {0}; // Response
+
 	// Smallest possible payload length (cmd) is 1 byte.
 	switch (pkt.cmd[0]) {
 	case CMD_FW_PROBE:
 		// Firmware probe. Allowed in this protocol state.
 		// State unchanged.
+		break;
+
+	case CMD_GET_CDI:
+		debug_putname();
+		debug_puts("CMD_GET_CDI\n");
+		if (pkt.hdr.len != 1) {
+			// Bad length
+			state = STATE_FAILED;
+			break;
+		}
+
+		memcpy_s(rsp, sizeof(rsp), (void *)cdi, CDI_SIZE);
+
+		appreply(pkt.hdr, CMD_GET_CDI, rsp);
+
 		break;
 
 	case CMD_RESET:

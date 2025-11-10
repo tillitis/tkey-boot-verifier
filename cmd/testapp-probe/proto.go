@@ -32,6 +32,8 @@ func (c appCmd) String() string {
 }
 
 var (
+	cmdGetCDI  = appCmd{0x01, "cmdGetCDI", tkeyclient.CmdLen1}
+	rspGetCDI  = appCmd{0x01, "rspGetCDI", tkeyclient.CmdLen128}
 	cmdReset = appCmd{0xfe, "cmdReset", tkeyclient.CmdLen4}
 )
 
@@ -68,6 +70,31 @@ func resetDstFromInt(i int) (resetDst, error) {
 	}
 
 	return resetDst(i), nil
+}
+
+func getCDI(tk *tkeyclient.TillitisKey) (string, error) {
+	id := 0x01
+	tx, err := tkeyclient.NewFrameBuf(cmdGetCDI, id)
+	if err != nil {
+		return "", fmt.Errorf("NewFrameBuf: %w", err)
+	}
+
+	tkeyclient.Dump("GetCDI tx", tx)
+	if err = tk.Write(tx); err != nil {
+		return "", fmt.Errorf("write: %w", err)
+	}
+
+	tk.SetReadTimeoutNoErr(2)
+	defer tk.SetReadTimeoutNoErr(0)
+
+	rx, _, err := tk.ReadFrame(rspGetCDI, id)
+	if err != nil {
+		return "", fmt.Errorf("ReadFrame: %w", err)
+	}
+
+	cdi := fmt.Sprintf("%064x", rx[2:34])
+
+	return cdi, nil
 }
 
 func reset(tk *tkeyclient.TillitisKey, fwType fwResetType, verifierDst resetDst) error {
