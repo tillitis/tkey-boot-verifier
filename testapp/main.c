@@ -10,10 +10,13 @@
 // clang-format off
 static volatile uint32_t *app_addr      = (volatile uint32_t *) TK1_MMIO_TK1_APP_ADDR;
 static volatile uint32_t *app_size      = (volatile uint32_t *) TK1_MMIO_TK1_APP_SIZE;
+static volatile uint32_t *cdi           = (volatile uint32_t *)TK1_MMIO_TK1_CDI_FIRST;
 static volatile uint32_t *cpu_mon_ctrl  = (volatile uint32_t *) TK1_MMIO_TK1_CPU_MON_CTRL;
 static volatile uint32_t *cpu_mon_first = (volatile uint32_t *) TK1_MMIO_TK1_CPU_MON_FIRST;
 static volatile uint32_t *cpu_mon_last  = (volatile uint32_t *) TK1_MMIO_TK1_CPU_MON_LAST;
 // clang-format on
+
+#define CDI_SIZE 32
 
 extern const uint8_t app_led_color;
 extern const uint8_t app_name0[4];
@@ -64,6 +67,10 @@ int main(void)
 
 	write(IO_CDC, app_name0, sizeof(app_name0));
 	write(IO_CDC, app_name1, sizeof(app_name1));
+	puts(IO_CDC, "\r\n");
+
+	puts(IO_CDC, "CDI:\r\n");
+	hexdump(IO_CDC, (void *)cdi, CDI_SIZE);
 	puts(IO_CDC, "\r\n");
 
 	if (wait_byte() != 0) {
