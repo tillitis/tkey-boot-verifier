@@ -15,7 +15,7 @@ See [the design document](doc/design.md) for more.
 ## Status
 
 For test purposes the boot verifier currently waits for commands from the
-client after power cycling. You can talk to it with `verifier-client`.
+client after power cycling. You can talk to it with `tkey-mgt`.
 
 It currently supports:
 
@@ -37,8 +37,8 @@ It currently supports:
 
 ## Build
 
-To build both client app, `verifier-client`, and the device app,
-`boot verifier`, run:
+To build both client app, `tkey-mgt`, and the device app,
+`verifier`, run:
 
 ```
 ./build.sh
@@ -79,13 +79,13 @@ You will now have a boot verifier in app slot 0. In the current state of
 development it will wait for commands from the client after starting.
 This is not the end goal, but sufficient for development.
 
-You can try talking to it with `verifier-client -cmd install`, see
+You can try talking to it with `tkey-mgt -cmd install`, see
 below.
 
-### verifier-client
+### tkey-mgt
 
-- `verifier-client -cmd boot -app path`
-- `verifier-client -cmd install -app path`
+- `tkey-mgt -cmd boot -app path`
+- `tkey-mgt -cmd install -app path`
 
 Command `boot` does a verified boot of the device app specified with
 `-app`. It assumes a TKey running firmware which is waiting for

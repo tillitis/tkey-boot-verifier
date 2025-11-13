@@ -1,3 +1,5 @@
+/cmd/tkey-mgt/verifier.bin
+/tkey-mgt
 .cache
 compile_commands.json
 testapp/*.o
