@@ -35,7 +35,7 @@ LDFLAGS=-T $(LIBDIR)/app.lds -L $(LIBDIR) -lcommon -lcrt0 -lmonocypher -lsyscall
 .PHONY: all
 all: \
     verifier/app.bin \
-    verifier-client \
+    tkey-mgt \
     testapp/app_a.bin \
     testapp/app_b.bin \
 
@@ -46,8 +46,8 @@ compile_commands.json:
 	$(MAKE) clean
 	bear -- make verifier/app.bin
 
-cmd/verifier-client/verifier.bin: verifier/app.bin
-	cp verifier/app.bin cmd/verifier-client/verifier.bin
+cmd/tkey-mgt/verifier.bin: verifier/app.bin
+	cp verifier/app.bin cmd/tkey-mgt/verifier.bin
 
 # Turn elf into bin for device
 %.bin: %.elf
@@ -67,9 +67,9 @@ check-verifier-hash: verifier/app.bin show-verifier-hash
 check:
 	clang-tidy -header-filter=.* -checks=cert-* verifier/*.[ch] -- $(CFLAGS)
 
-.PHONY: verifier-client
-verifier-client: cmd/verifier-client/verifier.bin
-	go build -trimpath -buildvcs=false ./cmd/verifier-client
+.PHONY: tkey-mgt
+tkey-mgt: cmd/tkey-mgt/verifier.bin
+	go build -trimpath -buildvcs=false ./cmd/tkey-mgt
 
 # Simple ed25519 verifier app
 VERIFIEROBJS=verifier/main.o verifier/verify.o verifier/app_proto.o \
@@ -87,8 +87,8 @@ $(TESTAPPOBJS): $(INCLUDE)/tkey/tk1_mem.h
 
 .PHONY: clean
 clean:
-	rm -f verifier-client verifier/app.bin verifier/app.elf $(VERIFIEROBJS)
-	rm -f cmd/verifier-client/verifier.bin
+	rm -f tkey-mgt verifier/app.bin verifier/app.elf $(VERIFIEROBJS)
+	rm -f cmd/tkey-mgt/verifier.bin
 	make -C test clean
 	rm -f $(TESTAPPOBJS)
 	rm -f testapp/app_a.bin testapp/app_a.elf
