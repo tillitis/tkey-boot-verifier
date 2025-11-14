@@ -20,7 +20,12 @@ import (
 //go:embed verifier.bin
 var verifierBinary []byte
 
-func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte, pubkey [ed25519.PublicKeySize]byte) error {
+func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte) error {
+	pubkey, err := getPubkey(tk)
+	if err != nil {
+		return err
+	}
+
 	digest := blake2s.Sum256(bin)
 	if !ed25519.Verify(pubkey[:], digest[:], sig[:]) {
 		return fmt.Errorf("app signature invalid")
@@ -143,9 +148,8 @@ func main() {
 		appDigest := blake2s.Sum256(appBin)
 		appSig := [ed25519.SignatureSize]byte(
 			ed25519.Sign(privateKey, appDigest[:]))
-		pubkey := [ed25519.PublicKeySize]byte(privateKey.Public().(ed25519.PublicKey))
 
-		if err := updateApp1(tk, appBin, appSig, pubkey); err != nil {
+		if err := updateApp1(tk, appBin, appSig); err != nil {
 			fmt.Printf("couldn't update app slot 1: %v\n", err)
 			os.Exit(1)
 		}

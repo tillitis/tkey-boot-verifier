@@ -227,6 +227,17 @@ enum state wait_for_command(enum state state, struct context *ctx,
 
 	// Smallest possible payload length (cmd) is 1 byte.
 	switch (pkt.cmd[0]) {
+	case CMD_GET_PUBKEY:
+		if (pkt.hdr.len != 1) {
+			// Bad length
+			assert(1 == 2);
+		}
+
+		memcpy_s(rsp, sizeof(rsp), pubkey, 32);
+
+		appreply(pkt.hdr, CMD_GET_PUBKEY, rsp);
+		break;
+
 	case CMD_VERIFY: {
 		uint8_t app_digest[32] = {0};
 		uint8_t app_signature[64] = {0};
