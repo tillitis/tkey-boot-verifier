@@ -20,15 +20,20 @@ import (
 //go:embed verifier.bin
 var verifierBinary []byte
 
-func updateApp(tk *tkeyclient.TillitisKey, appBin1 []byte, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
-	if err := updateAppInit(tk, len(appBin1), digest, sig); err != nil {
+func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte, pubkey [ed25519.PublicKeySize]byte) error {
+	digest := blake2s.Sum256(bin)
+	if !ed25519.Verify(pubkey[:], digest[:], sig[:]) {
+		return fmt.Errorf("app signature invalid")
+	}
+
+	if err := updateAppInit(tk, len(bin), digest, sig); err != nil {
 		return err
 	}
 
 	// For each 127 byte
 	//   Upload chunk
 	var buf []byte
-	for _, b := range appBin1 {
+	for _, b := range bin {
 		buf = append(buf, b)
 		if len(buf) == 127 {
 			if err := writeChunk(tk, buf); err != nil {
@@ -135,11 +140,12 @@ func main() {
 
 	switch *cmd {
 	case "install":
-		app1Digest := blake2s.Sum256(appBin)
-		app1Sig := [ed25519.SignatureSize]byte(
-			ed25519.Sign(privateKey, app1Digest[:]))
+		appDigest := blake2s.Sum256(appBin)
+		appSig := [ed25519.SignatureSize]byte(
+			ed25519.Sign(privateKey, appDigest[:]))
+		pubkey := [ed25519.PublicKeySize]byte(privateKey.Public().(ed25519.PublicKey))
 
-		if err := updateApp(tk, appBin, app1Digest, app1Sig); err != nil {
+		if err := updateApp1(tk, appBin, appSig, pubkey); err != nil {
 			fmt.Printf("couldn't update app slot 1: %v\n", err)
 			os.Exit(1)
 		}
