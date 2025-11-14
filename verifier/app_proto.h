@@ -13,6 +13,7 @@ enum appcmd {
 	CMD_RESET = 0x02,
 	CMD_UPDATE_APP_INIT = 0x03,
 	CMD_UPDATE_APP_CHUNK = 0x04,
+	CMD_GET_PUBKEY = 0x05,
 
 	CMD_FW_PROBE = 0xff,
 };

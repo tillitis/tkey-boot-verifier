@@ -39,11 +39,13 @@ var (
 	cmdReset          = appCmd{0x02, "cmdReset", tkeyclient.CmdLen1}
 	cmdUpdateAppInit  = appCmd{0x03, "cmdUpdateAppInit", tkeyclient.CmdLen128}
 	cmdUpdateAppChunk = appCmd{0x04, "cmdUpdateAppChunk", tkeyclient.CmdLen128}
+	cmdGetPubkey      = appCmd{0x05, "cmdGetPubkey", tkeyclient.CmdLen1}
 
 	rspVerify         = appCmd{0x01, "rspVerify", tkeyclient.CmdLen4}
 	rspReset          = appCmd{0x02, "rspReset", tkeyclient.CmdLen4}
 	rspUpdateAppInit  = appCmd{0x03, "rspUpdateAppInit", tkeyclient.CmdLen4}
 	rspUpdateAppChunk = appCmd{0x04, "rspUpdateAppChunk", tkeyclient.CmdLen4}
+	rspGetPubkey      = appCmd{0x05, "rspGetPubkey", tkeyclient.CmdLen128}
 )
 
 func reset(tk *tkeyclient.TillitisKey) {
@@ -56,6 +58,33 @@ func reset(tk *tkeyclient.TillitisKey) {
 		fmt.Fprintf(os.Stderr, "Write: %v", err)
 		os.Exit(1)
 	}
+}
+
+func getPubkey(tk *tkeyclient.TillitisKey) ([ed25519.PublicKeySize]byte, error) {
+	id := 0x01
+
+	tx, err := tkeyclient.NewFrameBuf(cmdGetPubkey, id)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("NewFrameBuf: %w", err)
+	}
+
+	tkeyclient.Dump("get pubkey tx", tx)
+
+	if err = tk.Write(tx); err != nil {
+		return [32]byte{}, err
+	}
+
+	rx, _, err := tk.ReadFrame(rspGetPubkey, id)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("ReadFrame: %w", err)
+	}
+
+	tkeyclient.Dump("get pubkey rx", rx)
+
+	pubkey := [ed25519.PublicKeySize]byte{};
+	copy(pubkey[:], rx[2:2+len(pubkey)])
+
+	return pubkey, nil
 }
 
 func updateAppInit(tk *tkeyclient.TillitisKey, size int, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
