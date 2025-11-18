@@ -141,7 +141,7 @@ func main() {
 		fmt.Printf("Could not open %s: %v\n", devPath, err)
 		os.Exit(1)
 	}
-	defer tk.Close()
+	defer func() { _ = tk.Close() }()
 
 	switch *cmd {
 	case "install":
