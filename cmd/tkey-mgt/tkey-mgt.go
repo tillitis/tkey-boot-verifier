@@ -20,7 +20,7 @@ import (
 //go:embed verifier.bin
 var verifierBinary []byte
 
-func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte) error {
+func verifyAppSignature(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte) error {
 	pubkey, err := getPubkey(tk)
 	if err != nil {
 		return err
@@ -30,6 +30,17 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 	if !ed25519.Verify(pubkey[:], digest[:], sig[:]) {
 		return fmt.Errorf("app signature invalid")
 	}
+
+	return nil
+}
+
+func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte) error {
+	err := verifyAppSignature(tk, bin, sig)
+	if err != nil {
+		return err
+	}
+
+	digest := blake2s.Sum256(bin)
 
 	if err := updateAppInit(tk, len(bin), digest, sig); err != nil {
 		return err
@@ -58,13 +69,20 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 	return nil
 }
 
-func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
+func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, sig [ed25519.SignatureSize]byte) error {
 	var secret []byte
 
 	err := tk.LoadApp(verifierBinary, secret)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
+	err = verifyAppSignature(tk, appBin, sig)
+	if err != nil {
+		return err
+	}
+
+	digest := blake2s.Sum256(appBin)
 
 	if verify(tk, digest, sig) != nil {
 		return err
@@ -94,19 +112,25 @@ func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, digest [blake2s.Si
 }
 
 func usage() {
-	fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path\n%s -cmd install -app path\n", os.Args[0], os.Args[0])
+	fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path -sig path\n%s -cmd install -app path -sig path\n", os.Args[0], os.Args[0])
 	flag.PrintDefaults()
 }
 
 func main() {
 	cmd := flag.String("cmd", "", "Command")
 	appPath := flag.String("app", "", "Path to app")
+	sigPath := flag.String("sig", "", "Path to signature")
 	port := flag.String("port", "", "TKey serial port")
 	flag.Usage = usage
 
 	flag.Parse()
 
 	if *appPath == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	if *sigPath == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -118,12 +142,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	seed := []byte{
-		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+	appSig, err := readSig(*sigPath)
+	if err != nil {
+		fmt.Printf("couldn't read file: %v\n", err)
+		os.Exit(1)
 	}
-
-	privateKey := ed25519.NewKeyFromSeed(seed)
+	if appSig.Alg != [2]byte{'E', 'b'} {
+		fmt.Printf("incompatible sig file, excepted ed25519 signature over blake2s digest\n")
+		os.Exit(1)
+	}
 
 	tkeyclient.SilenceLogging()
 
@@ -145,22 +172,13 @@ func main() {
 
 	switch *cmd {
 	case "install":
-		appDigest := blake2s.Sum256(appBin)
-		appSig := [ed25519.SignatureSize]byte(
-			ed25519.Sign(privateKey, appDigest[:]))
-
-		if err := updateApp1(tk, appBin, appSig); err != nil {
+		if err := updateApp1(tk, appBin, appSig.Sig); err != nil {
 			fmt.Printf("couldn't update app slot 1: %v\n", err)
 			os.Exit(1)
 		}
 
 	case "boot":
-		// Start verifier, then another app
-		appDigest := blake2s.Sum256(appBin)
-		appSig := [ed25519.SignatureSize]byte(
-			ed25519.Sign(privateKey, appDigest[:]))
-
-		if err := startVerifier(tk, appBin, appDigest, appSig); err != nil {
+		if err := startVerifier(tk, appBin, appSig.Sig); err != nil {
 			fmt.Printf("couldn't load and start verifier: %v\n", err)
 			os.Exit(1)
 		}
