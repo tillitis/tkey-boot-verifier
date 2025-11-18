@@ -5,13 +5,18 @@ package main
 
 import (
 	"bytes"
-	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"os"
 	"strings"
 )
+
+type signature struct {
+	Alg    [2]byte
+	KeyNum [8]byte
+	Sig    [64]byte
+}
 
 // readBase64 reads the file in filename with base64, decodes it and
 // returns a binary representation
@@ -34,8 +39,8 @@ func readBase64(filename string) ([]byte, error) {
 	return data, nil
 }
 
-func readSig(filename string) (*[ed25519.SignatureSize]byte, error) {
-	var sig [ed25519.SignatureSize]byte
+func readSig(filename string) (*signature, error) {
+	var sig signature
 
 	buf, err := readBase64(filename)
 	if err != nil {
