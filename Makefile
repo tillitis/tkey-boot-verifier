@@ -35,6 +35,7 @@ LDFLAGS=-T $(LIBDIR)/app.lds -L $(LIBDIR) -lcommon -lcrt0 -lmonocypher -lsyscall
 .PHONY: all
 all: \
     verifier/app.bin \
+    sign-tool \
     tkey-mgt \
     testapp/app_a.bin \
     testapp/app_b.bin \
@@ -71,6 +72,10 @@ check:
 tkey-mgt: cmd/tkey-mgt/verifier.bin
 	go build -trimpath -buildvcs=false ./cmd/tkey-mgt
 
+.PHONY: sign-tool
+sign-tool:
+	go build -trimpath -buildvcs=false ./cmd/sign-tool
+
 # Simple ed25519 verifier app
 VERIFIEROBJS=verifier/main.o verifier/verify.o verifier/app_proto.o \
     verifier/update.o
@@ -87,6 +92,7 @@ $(TESTAPPOBJS): $(INCLUDE)/tkey/tk1_mem.h
 
 .PHONY: clean
 clean:
+	rm -f sign-tool
 	rm -f tkey-mgt verifier/app.bin verifier/app.elf $(VERIFIEROBJS)
 	rm -f cmd/tkey-mgt/verifier.bin
 	make -C test clean
