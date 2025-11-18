@@ -1,4 +1,5 @@
 /cmd/tkey-mgt/verifier.bin
+/sign-tool
 /tkey-mgt
 .cache
 compile_commands.json
