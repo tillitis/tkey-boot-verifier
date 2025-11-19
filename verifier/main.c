@@ -151,7 +151,7 @@ static enum state started(void)
 	return state;
 }
 
-static void verify_flash(uint8_t pubkey[32])
+static enum state verify_flash(uint8_t pubkey[32])
 {
 	uint8_t app_digest[32] = {0};
 	uint8_t app_signature[64] = {0};
@@ -163,6 +163,8 @@ static void verify_flash(uint8_t pubkey[32])
 	}
 
 	reset_if_verified(pubkey, START_FLASH1_VER, app_digest, app_signature);
+
+	return STATE_WAIT_FOR_COMMAND;
 }
 
 static void wait_for_app_chunk(struct context *ctx)
@@ -321,7 +323,7 @@ int main(void)
 			break;
 
 		case STATE_VERIFY_FLASH: {
-			verify_flash(pubkey);
+			state = verify_flash(pubkey);
 			break;
 		}
 
