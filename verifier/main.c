@@ -12,6 +12,7 @@
 #include <tkey/tk1_mem.h>
 
 #include "app_proto.h"
+#include "bv_nad.h"
 #include "update.h"
 #include "verify.h"
 
@@ -142,10 +143,10 @@ static enum state started(void)
 		assert(1 == 2);
 	}
 
-	if (next_app_data[0] == 17) {
-		state = STATE_VERIFY_FLASH;
-	} else {
+	if (next_app_data[0] == BV_NAD_WAIT_FOR_COMMAND) {
 		state = STATE_WAIT_FOR_COMMAND;
+	} else {
+		state = STATE_VERIFY_FLASH;
 	}
 
 	return state;
@@ -201,7 +202,7 @@ static void wait_for_app_chunk(struct context *ctx)
 
 			struct reset rst = {0};
 			rst.type = START_DEFAULT;
-			rst.next_app_data[0] = 17;
+			rst.next_app_data[0] = BV_NAD_BOOT_APP_1;
 			sys_reset(&rst, 1);
 		}
 

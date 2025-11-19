@@ -7,6 +7,8 @@
 #include <tkey/syscall.h>
 #include <tkey/tk1_mem.h>
 
+#include "../verifier/bv_nad.h"
+
 // clang-format off
 static volatile uint32_t *app_addr      = (volatile uint32_t *) TK1_MMIO_TK1_APP_ADDR;
 static volatile uint32_t *app_size      = (volatile uint32_t *) TK1_MMIO_TK1_APP_SIZE;
@@ -37,6 +39,14 @@ int wait_byte()
 	}
 
 	return 0;
+}
+
+void reset(void)
+{
+	struct reset rst = {0};
+	rst.type = START_DEFAULT;
+	rst.next_app_data[0] = BV_NAD_WAIT_FOR_COMMAND;
+	sys_reset(&rst, 1);
 }
 
 int main(void)
@@ -72,7 +82,5 @@ int main(void)
 			;
 	}
 
-	struct reset rst = {0};
-	rst.type = START_DEFAULT;
-	sys_reset(&rst, 0);
+	reset();
 }
