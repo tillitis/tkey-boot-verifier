@@ -83,14 +83,14 @@ VERIFIEROBJS=verifier/main.o verifier/verify.o verifier/app_proto.o \
     verifier/update.o
 verifier/app.elf: $(VERIFIEROBJS)
 	$(CC) $(CFLAGS) $(VERIFIEROBJS) $(LDFLAGS) -I $(LIBDIR) -o $@
-$(VERIFIEROBJS): $(INCLUDE)/tkey/tk1_mem.h
+$(VERIFIEROBJS): $(INCLUDE)/tkey/tk1_mem.h verifier/bv_nad.h
 
 TESTAPPOBJS=testapp/main.o
 testapp/app_a.elf: $(TESTAPPOBJS) testapp/app_a.c
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -I $(LIBDIR) -o $@
 testapp/app_b.elf: $(TESTAPPOBJS) testapp/app_b.c
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -I $(LIBDIR) -o $@
-$(TESTAPPOBJS): $(INCLUDE)/tkey/tk1_mem.h
+$(TESTAPPOBJS): $(INCLUDE)/tkey/tk1_mem.h verifier/bv_nad.h
 
 testapp/%.bin.sig: testapp/%.bin sign-tool dev-seed
 	./sign-tool -m $< -s dev-seed
