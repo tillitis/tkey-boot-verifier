@@ -101,6 +101,27 @@ after installing, telling firmware to start the boot verifier on flash,
 which will then verify slot 1's digest and reset again to ask firmware
 to start slot 1.
 
+## Chained Reset
+
+### Example: Verified boot from client
+
+Given:
+
+- A verifier app X in preloaded app slot 0
+- An app A in preloaded app slot 1
+- A verifier app Y on the client
+- An app B on the client
+
+The following reset chain can be used to, from the client, first load a
+verifier and then load a verified app.
+
+| Reset Type                | App Digest    | Next App Data           | Next app                   |
+|---------------------------|---------------|-------------------------|----------------------------|
+| START_DEFAULT (Cold boot) | H(verifier X) | 000...                  | Verifier X from slot 0     |
+| START_FLASH1_VER          | H(app A)      | -                       | App A from slot 1          |
+| START_CLIENT_VER          | H(verifier Y) | BV_NAD_WAIT_FOR_COMMAND | Verifier Y from client     |
+| START_CLIENT_VER          | H(app B)      | -                       | App B from client          |
+
 ## TODO
 
 - Change default behaviour of boot verifier to always start app slot

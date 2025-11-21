@@ -7,6 +7,7 @@
 enum bv_nad {
 	BV_NAD_BOOT_APP_1 = 0,
 	BV_NAD_WAIT_FOR_COMMAND = 1,
+	BV_NAD_COUNT,
 };
 
 #endif

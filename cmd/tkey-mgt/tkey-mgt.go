@@ -20,6 +20,8 @@ import (
 //go:embed verifier.bin
 var verifierBinary []byte
 
+var expectClose = true
+
 func verifyAppSignature(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte) error {
 	pubkey, err := getPubkey(tk)
 	if err != nil {
@@ -35,7 +37,19 @@ func verifyAppSignature(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.Sig
 }
 
 func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte) error {
-	err := verifyAppSignature(tk, bin, sig)
+	err := reset(tk, fwResetTypeStartFlash0, verifierResetDstCmdMode)
+	if err != nil {
+		return err
+	}
+
+	if expectClose {
+		waitUntilPortClosed(tk)
+		reconnect(tk)
+	} else {
+		time.Sleep(1000 * time.Millisecond)
+	}
+
+	err = verifyAppSignature(tk, bin, sig)
 	if err != nil {
 		return err
 	}
@@ -70,9 +84,22 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 }
 
 func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, sig [ed25519.SignatureSize]byte) error {
+	var err error
 	var secret []byte
 
-	err := tk.LoadApp(verifierBinary, secret)
+	err = reset(tk, fwResetTypeStartClient, verifierResetDstCmdMode)
+	if err != nil {
+		return err
+	}
+
+	if expectClose {
+		waitUntilPortClosed(tk)
+		reconnect(tk)
+	} else {
+		time.Sleep(1000 * time.Millisecond)
+	}
+
+	err = tk.LoadApp(verifierBinary, secret)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -88,8 +115,28 @@ func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, sig [ed25519.Signa
 		return err
 	}
 
-	// Wait for TKey to reset
-	time.Sleep(1000 * time.Millisecond)
+	if expectClose {
+		waitUntilPortClosed(tk)
+		reconnect(tk)
+	} else {
+		time.Sleep(1000 * time.Millisecond)
+	}
+
+	err = tk.LoadApp(appBin, []byte{})
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+
+	return nil
+}
+
+func waitUntilPortClosed(tk *tkeyclient.TillitisKey) {
+	tk.ReadFrame(rspVerify, 0x01)
+	tk.Close()
+}
+
+func reconnect(tk *tkeyclient.TillitisKey) {
+	time.Sleep(2000 * time.Millisecond)
 
 	devPath, err := tkeyclient.DetectSerialPort(true)
 	if err != nil {
@@ -101,14 +148,6 @@ func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, sig [ed25519.Signa
 		fmt.Printf("Could not open %s: %v\n", devPath, err)
 		os.Exit(1)
 	}
-
-	// load appBin (using USS?)
-	err = tk.LoadApp(appBin, []byte{})
-	if err != nil {
-		fmt.Printf("%v", err)
-	}
-
-	return nil
 }
 
 func usage() {
@@ -121,9 +160,12 @@ func main() {
 	appPath := flag.String("app", "", "Path to app")
 	sigPath := flag.String("sig", "", "Path to signature")
 	port := flag.String("port", "", "TKey serial port")
+	noExpectClose := flag.Bool("no-expect-close", false, "Do not expect serial port to disappear when TKey resets")
 	flag.Usage = usage
 
 	flag.Parse()
+
+	expectClose = !*noExpectClose
 
 	if *appPath == "" {
 		flag.Usage()

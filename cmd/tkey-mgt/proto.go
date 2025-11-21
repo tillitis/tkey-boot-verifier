@@ -6,7 +6,6 @@ package main
 import (
 	"crypto/ed25519"
 	"fmt"
-	"os"
 
 	"github.com/tillitis/tkeyclient"
 	"golang.org/x/crypto/blake2s"
@@ -36,28 +35,54 @@ func (c appCmd) String() string {
 
 var (
 	cmdVerify         = appCmd{0x01, "cmdVerify", tkeyclient.CmdLen128}
-	cmdReset          = appCmd{0x02, "cmdReset", tkeyclient.CmdLen1}
 	cmdUpdateAppInit  = appCmd{0x03, "cmdUpdateAppInit", tkeyclient.CmdLen128}
 	cmdUpdateAppChunk = appCmd{0x04, "cmdUpdateAppChunk", tkeyclient.CmdLen128}
 	cmdGetPubkey      = appCmd{0x05, "cmdGetPubkey", tkeyclient.CmdLen1}
+	cmdReset          = appCmd{0xfe, "cmdReset", tkeyclient.CmdLen4}
 
 	rspVerify         = appCmd{0x01, "rspVerify", tkeyclient.CmdLen4}
-	rspReset          = appCmd{0x02, "rspReset", tkeyclient.CmdLen4}
 	rspUpdateAppInit  = appCmd{0x03, "rspUpdateAppInit", tkeyclient.CmdLen4}
 	rspUpdateAppChunk = appCmd{0x04, "rspUpdateAppChunk", tkeyclient.CmdLen4}
 	rspGetPubkey      = appCmd{0x05, "rspGetPubkey", tkeyclient.CmdLen128}
 )
 
-func reset(tk *tkeyclient.TillitisKey) {
-	tx, err := tkeyclient.NewFrameBuf(cmdReset, 0x01)
+type fwResetType uint32
+
+const (
+	fwResetTypeStartDefault   fwResetType = 0
+	fwResetTypeStartFlash0    fwResetType = 1
+	fwResetTypeStartFlash1    fwResetType = 2
+	fwResetTypeStartFlash0Ver fwResetType = 3
+	fwResetTypeStartFlash1Ver fwResetType = 4
+	fwResetTypeStartClient    fwResetType = 5
+	fwResetTypeStartClientVer fwResetType = 6
+)
+
+type resetDst uint8
+
+const (
+	verifierResetDstApp1    = 0
+	verifierResetDstCmdMode = 1
+)
+
+func reset(tk *tkeyclient.TillitisKey, fwType fwResetType, verifierDst resetDst) error {
+	id := 0x01
+
+	tx, err := tkeyclient.NewFrameBuf(cmdReset, id)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
+	tx[2] = uint8(fwType)
+	tx[3] = uint8(verifierDst)
+
+	tkeyclient.Dump("reset tx", tx)
+
 	if err = tk.Write(tx); err != nil {
-		fmt.Fprintf(os.Stderr, "Write: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("write: %w", err)
 	}
+
+	return nil
 }
 
 func getPubkey(tk *tkeyclient.TillitisKey) ([ed25519.PublicKeySize]byte, error) {
@@ -81,7 +106,7 @@ func getPubkey(tk *tkeyclient.TillitisKey) ([ed25519.PublicKeySize]byte, error) 
 
 	tkeyclient.Dump("get pubkey rx", rx)
 
-	pubkey := [ed25519.PublicKeySize]byte{};
+	pubkey := [ed25519.PublicKeySize]byte{}
 	copy(pubkey[:], rx[2:2+len(pubkey)])
 
 	return pubkey, nil
@@ -173,10 +198,6 @@ func verify(tk *tkeyclient.TillitisKey, digest [blake2s.Size]byte, sig [ed25519.
 	if err = tk.Write(tx); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
-	// Wait until port closes
-	tk.ReadFrame(rspVerify, 0x01)
-	tk.Close()
 
 	return nil
 }

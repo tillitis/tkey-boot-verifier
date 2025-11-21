@@ -48,7 +48,7 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 
 	if (*ver >= TKEY_VERSION_CASTOR) {
 		if (readselect(IO_CDC, &endpoint, &available) < 0) {
-			debug_puts("readselect errror");
+			debug_puts("verifier: readselect errror");
 			return -1;
 		}
 
@@ -62,14 +62,14 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 	}
 
 	if (parseframe(in, hdr) == -1) {
-		debug_puts("Couldn't parse header\n");
+		debug_puts("verifier: Couldn't parse header\n");
 		return -1;
 	}
 
 	if (*ver >= TKEY_VERSION_CASTOR) {
 		for (uint8_t n = 0; n < hdr->len;) {
 			if (readselect(IO_CDC, &endpoint, &available) < 0) {
-				debug_puts("readselect errror");
+				debug_puts("verifier: readselect errror");
 				return -1;
 			}
 
@@ -77,14 +77,14 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 			// the frame.
 			available = available > hdr->len ? hdr->len : available;
 
-			debug_puts("reading ");
+			debug_puts("verifier: reading ");
 			debug_putinthex(available);
 			debug_lf();
 
 			int nbytes = read(IO_CDC, &cmd[n], CMDLEN_MAXBYTES - n,
 					  available);
 			if (nbytes < 0) {
-				debug_puts("read: buffer overrun\n");
+				debug_puts("verifier: read: buffer overrun\n");
 
 				return -1;
 			}
@@ -103,7 +103,7 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 	// already read.
 	if (hdr->endpoint == DST_FW) {
 		appreply_nok(*hdr);
-		debug_puts("Responded NOK to message meant for fw\n");
+		debug_puts("verifier: Responded NOK to message meant for fw\n");
 		cmd[0] = CMD_FW_PROBE;
 
 		return 0;
@@ -112,7 +112,7 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 	// Is it for us? If not, return error after having discarded
 	// all bytes.
 	if (hdr->endpoint != DST_SW) {
-		debug_puts("Message not meant for app. endpoint was 0x");
+		debug_puts("verifier: Message not meant for app. endpoint was 0x");
 		debug_puthex(hdr->endpoint);
 		debug_lf();
 
@@ -152,6 +152,19 @@ static enum state started(void)
 	return state;
 }
 
+void reset(uint32_t type, enum bv_nad reset_dst)
+{
+	if (reset_dst >= BV_NAD_COUNT) {
+		assert(1 == 2);
+	}
+
+	struct reset rst = {0};
+	rst.type = type;
+	rst.next_app_data[0] = reset_dst;
+
+	sys_reset(&rst, 1);
+}
+
 static enum state verify_flash(uint8_t pubkey[32])
 {
 	uint8_t app_digest[32] = {0};
@@ -176,7 +189,7 @@ static void wait_for_app_chunk(struct context *ctx)
 	assert(ctx != NULL);
 
 	if (read_command(&pkt.hdr, pkt.cmd) != 0) {
-		debug_puts("read_command returned != 0!\n");
+		debug_puts("verifier: read_command returned != 0!\n");
 		assert(1 == 2);
 	}
 
@@ -252,6 +265,15 @@ enum state wait_for_command(enum state state, struct context *ctx,
 		break;
 	}
 
+	case CMD_RESET:
+		if (pkt.hdr.len != 4) {
+			assert(1 == 2);
+		}
+
+		reset(pkt.cmd[1], pkt.cmd[2]);
+		break;
+
+
 	case CMD_UPDATE_APP_INIT: {
 		uint32_t app_size = 0;
 
@@ -278,10 +300,6 @@ enum state wait_for_command(enum state state, struct context *ctx,
 		state = STATE_WAIT_FOR_APP_CHUNK;
 		break;
 	}
-
-	case CMD_RESET:
-		assert(1 == 2);
-		break;
 
 	default:
 		// WTF?
@@ -324,11 +342,13 @@ int main(void)
 			break;
 
 		case STATE_VERIFY_FLASH: {
+			debug_puts("verifier: STATE_WAIT_VERIFY_FLASH\n");
 			state = verify_flash(pubkey);
 			break;
 		}
 
 		case STATE_WAIT_FOR_COMMAND:
+			debug_puts("verifier: STATE_WAIT_FOR_COMMAND\n");
 			state = wait_for_command(state, &ctx, pubkey);
 			break;
 
