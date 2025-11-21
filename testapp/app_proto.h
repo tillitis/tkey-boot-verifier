@@ -4,21 +4,13 @@
 #ifndef APP_PROTO_H
 #define APP_PROTO_H
 
-#include <tkey/io.h>
-#include <tkey/lib.h>
 #include <tkey/proto.h>
 
 enum appcmd {
-	CMD_VERIFY = 0x01,
-	CMD_UPDATE_APP_INIT = 0x03,
-	CMD_UPDATE_APP_CHUNK = 0x04,
-	CMD_GET_PUBKEY = 0x05,
-
 	CMD_RESET = 0xfe,
 	CMD_FW_PROBE = 0xff,
 };
 
 void appreply_nok(struct frame_header hdr);
-void appreply(struct frame_header hdr, enum appcmd rspcode, void *buf);
 
 #endif
