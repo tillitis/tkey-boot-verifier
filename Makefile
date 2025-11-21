@@ -24,7 +24,7 @@ CFLAGS = -target riscv32-unknown-none-elf -march=rv32iczmmul -mabi=ilp32 -mcmode
    -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf \
    -fno-builtin-putchar -nostdlib -mno-relax -flto -g \
    -Wall -Werror=implicit-function-declaration \
-   -I $(INCLUDE) -I $(LIBDIR) #-DTKEY_DEBUG #-DQEMU_DEBUG
+   -I $(INCLUDE) -I $(LIBDIR) $(EXTRA_CFLAGS) #-DTKEY_DEBUG #-DQEMU_DEBUG
 
 AS = clang
 ASFLAGS = -target riscv32-unknown-none-elf -march=rv32iczmmul -mabi=ilp32 -mcmodel=medany -mno-relax
