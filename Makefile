@@ -38,7 +38,9 @@ all: \
     sign-tool \
     tkey-mgt \
     testapp/app_a.bin \
+    testapp/app_a.bin.sig \
     testapp/app_b.bin \
+    testapp/app_b.bin.sig \
 
 # Create compile_commands.json for clangd and LSP
 .PHONY: clangd
@@ -90,6 +92,12 @@ testapp/app_b.elf: $(TESTAPPOBJS) testapp/app_b.c
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -I $(LIBDIR) -o $@
 $(TESTAPPOBJS): $(INCLUDE)/tkey/tk1_mem.h
 
+testapp/%.bin.sig: testapp/%.bin sign-tool dev-seed
+	./sign-tool -m $< -s dev-seed
+
+dev-seed: 
+	echo "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f" > dev-seed
+
 .PHONY: clean
 clean:
 	rm -f sign-tool
@@ -97,8 +105,9 @@ clean:
 	rm -f cmd/tkey-mgt/verifier.bin
 	make -C test clean
 	rm -f $(TESTAPPOBJS)
-	rm -f testapp/app_a.bin testapp/app_a.elf
-	rm -f testapp/app_b.bin testapp/app_b.elf
+	rm -f testapp/app_a.bin testapp/app_a.bin.sig testapp/app_a.elf
+	rm -f testapp/app_b.bin testapp/app_b.bin.sig testapp/app_b.elf
+	rm -f dev-seed
 
 # Uses ../.clang-format
 FMTFILES=verifier/*.[ch] testapp/*.[ch]
