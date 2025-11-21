@@ -3,10 +3,13 @@
 /tkey-mgt
 .cache
 compile_commands.json
+dev-seed
 testapp/*.o
 testapp/app_a.bin
+testapp/app_a.bin.sig
 testapp/app_a.elf
 testapp/app_b.bin
+testapp/app_b.bin.sig
 testapp/app_b.elf
 verifier/*.o
 verifier/app.bin
