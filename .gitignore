@@ -1,5 +1,6 @@
 /cmd/tkey-mgt/verifier.bin
 /sign-tool
+/testapp-probe
 /tkey-mgt
 .cache
 compile_commands.json

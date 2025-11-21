@@ -37,6 +37,7 @@ all: \
     verifier/app.bin \
     sign-tool \
     tkey-mgt \
+    testapp-probe \
     testapp/app_a.bin \
     testapp/app_a.bin.sig \
     testapp/app_b.bin \
@@ -78,6 +79,10 @@ tkey-mgt: cmd/tkey-mgt/verifier.bin
 sign-tool:
 	go build -trimpath -buildvcs=false ./cmd/sign-tool
 
+.PHONY: testapp-probe
+testapp-probe:
+	go build -trimpath -buildvcs=false ./cmd/testapp-probe
+
 # Simple ed25519 verifier app
 VERIFIEROBJS=verifier/main.o verifier/verify.o verifier/app_proto.o \
     verifier/update.o
@@ -107,6 +112,7 @@ clean:
 	rm -f $(TESTAPPOBJS)
 	rm -f testapp/app_a.bin testapp/app_a.bin.sig testapp/app_a.elf
 	rm -f testapp/app_b.bin testapp/app_b.bin.sig testapp/app_b.elf
+	rm -f testapp-probe
 	rm -f dev-seed
 
 # Uses ../.clang-format
