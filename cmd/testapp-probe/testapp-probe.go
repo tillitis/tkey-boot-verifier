@@ -1,0 +1,65 @@
+// SPDX-FileCopyrightText: 2025 Tillitis AB <tillitis.se>
+// SPDX-License-Identifier: BSD-2-Clause
+
+package main
+
+import (
+	_ "embed"
+	"flag"
+	"fmt"
+	"os"
+
+	"github.com/tillitis/tkeyclient"
+)
+
+func usage() {
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Probe test app\n\n")
+	flag.PrintDefaults()
+}
+
+func main() {
+	var err error
+
+	cmd := flag.String("cmd", "", "Command. One of: reset")
+	port := flag.String("port", "", "TKey serial port")
+	fwResType := flag.Int("fw-reset-type", 0, "Firmware reset type. Integer")
+	verifierResetDst := flag.Int("verifier-reset-dst", 0, "Verifier reset dst. Integer")
+
+	flag.Usage = usage
+
+	flag.Parse()
+
+	if *cmd == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	devPath := *port
+	if devPath == "" {
+		devPath, err = tkeyclient.DetectSerialPort(true)
+		if err != nil {
+			fmt.Printf("couldn't find any TKeys\n")
+			os.Exit(1)
+		}
+	}
+
+	tk := tkeyclient.New()
+	defer func() { _ = tk.Close() }()
+	if err = tk.Connect(devPath, tkeyclient.WithSpeed(tkeyclient.SerialSpeed)); err != nil {
+		fmt.Printf("Could not open %s: %v\n", devPath, err)
+		os.Exit(1)
+	}
+
+	switch *cmd {
+	case "reset":
+		err = reset(tk, fwResetType(*fwResType), resetDst(*verifierResetDst))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v", err)
+			os.Exit(1)
+		}
+
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command %s", *cmd)
+		os.Exit(1)
+	}
+}
