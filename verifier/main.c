@@ -317,6 +317,9 @@ int main(void)
 
 	struct context ctx = {0};
 	enum state state = STATE_STARTED;
+#ifdef BOOT_INTO_WAIT_FOR_COMMAND
+	state = STATE_WAIT_FOR_COMMAND;
+#endif
 
 	// Calculating hardcoded dev pubkey/privkey the same way as tkey-image
 	uint8_t pubkey[32] = {0};
