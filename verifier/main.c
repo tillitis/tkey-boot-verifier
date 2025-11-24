@@ -317,6 +317,9 @@ int main(void)
 
 	struct context ctx = {0};
 	enum state state = STATE_STARTED;
+#ifdef BOOT_INTO_WAIT_FOR_COMMAND
+	state = STATE_WAIT_FOR_COMMAND;
+#endif
 
 	// Pubkey we got from tkeyimage
 	// 9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
