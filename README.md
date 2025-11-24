@@ -14,26 +14,24 @@ See [the design document](doc/design.md) for more.
 
 ## Status
 
-For test purposes the boot verifier currently waits for commands from the
-client after power cycling. You can talk to it with `tkey-mgt`.
-
 It currently supports:
 
 - verifying an app from the client. Your client app will typically
-  first load the boot verifier, then resetting and loading another
-  app. See the `boot` command in `verifier-client`. Note that this
-  needs a Castor TKey using the `defaultapp` in slot 0, which makes it
-  reset to firmware, waiting for commands from the client.
+  first reset and load the boot verifier. Then reset again and load
+  another app. See the `boot` command in `tkey-mgt`.
 
-- installing a device app in slot 1. See the `install` command. This,
-  on the other hand, needs a running boot verifier to talk to. The
-  boot verifier *must* be installed in slot 0 and its digest noted in
-  firmware, since it needs privileged access to the filesystem to be
-  able to install apps. See Produce flash image below.
+- installing a device app in slot 1. See the `install` command. This
+  needs an installed boot verifier to talk to. The boot verifier *must*
+  be installed in slot 0 and its digest noted in firmware, since it
+  needs privileged access to the filesystem to be able to install
+  apps. See Produce flash image below.
 
   Right now it automatically resets to start the boot verifier again
   when installation has finished, then it verifies and starts the app
   in slot 1.
+
+- tkey-mgt always sends a reset request to the currently running app
+  for both the `boot` and `install` commands.
 
 ## Build
 
@@ -42,6 +40,13 @@ To build both client app, `tkey-mgt`, and the device app,
 
 ```
 ./build.sh
+```
+
+To override default behavior and boot into command mode the verifier
+app can be built with `BOOT_INTO_WAIT_FOR_COMMAND` defined like so:
+
+```
+make EXTRA_CFLAGS=-DBOOT_INTO_WAIT_FOR_COMMAND
 ```
 
 ## Use
@@ -69,37 +74,51 @@ To install the boot verifier on the flash, use the `tkeyimage` tool in
 [tillitis-key1](https://github.com/tillitis/tillitis-key1). Typically:
 
 ```
-$ cp verifier/app.bin ../tillitis-key1/hw/application_fpga/
+$ cp verifier/app.bin ../tillitis-key1/hw/application_fpga/verifier.bin
+$ cp testapp/app_a.bin ../tillitis-key1/hw/application_fpga/
 $ cd ../tillitis-key1/hw/application_fpga/
-$ ./tools/tkeyimage/tkeyimage -f -app0 verifier.bin -o flash_image.bin
-$ make FLASH_APP_0=verifier.bin prog_flash
+$ ./tools/tkeyimage/tkeyimage -f -app0 verifier.bin -app1 app_a.bin -o flash_image.bin
+$ make FLASH_APP_0=verifier.bin FLASH_APP_1=app_a.bin prog_flash
 ```
 
-You will now have a boot verifier in app slot 0. In the current state of
-development it will wait for commands from the client after starting.
-This is not the end goal, but sufficient for development.
+You will now have a verifier in app slot 0 and testapp/app_a.bin in
+slot 1.
 
-You can try talking to it with `tkey-mgt -cmd install`, see
-below.
+You can try talking to it with `tkey-mgt -cmd install`, see below.
 
 ### tkey-mgt
 
-- `tkey-mgt -cmd boot -app path`
-- `tkey-mgt -cmd install -app path`
+- `tkey-mgt -cmd boot -app path -sig path-to-signature`
+- `tkey-mgt -cmd install -app path -sig path-to-signature`
 
 Command `boot` does a verified boot of the device app specified with
-`-app`. It assumes a TKey running firmware which is waiting for
-commands from client. In the current state of development this
-typically means a Castor prototype with the `defaultapp` in app slot
-0.
+`-app`. It assumes a TKey running an app that supports the reset
+command.
 
 Command `install` installs the device app specified with `-app` in
-slot 1. It assumes you are running a boot verifier from slot 0 which is
-waiting for commands from the client. See above about producing a
-flash image for this use case. It will automatically reset the TKey
-after installing, telling firmware to start the boot verifier on flash,
-which will then verify slot 1's digest and reset again to ask firmware
-to start slot 1.
+slot 1. It assumes you are running an app that supports the reset
+command and that a verifier is present in slot 0. See above about
+producing a flash image for this use case. It will automatically reset
+the TKey after installing, telling firmware to start the verifier on
+flash, which will then verify slot 1's digest and reset again to ask
+firmware to start slot 1.
+
+You need a signature of the BLAKE2s digest of the app you want to boot
+or install. Create this with:
+
+```
+$ ./sign-tool -m app -s path-to-private-key
+```
+
+The make target `dev-seed` creates a private key seed in `dev-seed`
+corresponding to this public key you can use for testing:
+
+```
+9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
+```
+
+NOTE WELL: This will most likely move to the [tkey-sign
+tool](https://github.com/tillitis/tkey-sign-cli).
 
 ## Chained Reset
 
@@ -124,26 +143,10 @@ verifier and then load a verified app.
 
 ## TODO
 
-- Change default behaviour of boot verifier to always start app slot
-  1, instead of waiting for commands.
-  
-- When installing an app in slot 1, always reset digest and signature
-  first, and detect it on start, so we can resume a botched
-  installation.
-
-- Change state machine to:
-
-  ```mermaid
-  stateDiagram-v2
-    [*] --> INIT
-    INIT --> VERIFY_FLASH: next_app_data == 17
-    INIT --> WAIT_FOR_COMMAND: next_app_data != 17
-    VERIFY_FLASH --> BOOT
-    WAIT_FOR_COMMAND --> WAIT_FOR_APP_CHUNK: CMD_UPDATE_APP_INIT
-    WAIT_FOR_APP_CHUNK --> WAIT_FOR_APP_CHUNK: CMD_UPDATE_APP_CHUNK
-    WAIT_FOR_APP_CHUNK --> BOOT: Last CMD_UPDATE_APP_CHUNK
-    BOOT --> [*]
-  ```
+- Investigate what to mix in for the seed for the next app. At least
+  mix in a name of the app, so not all device apps verified by the
+  verifier get the same seed. Mix in the pubkey (too?), so the seed is
+  always dependent on the vendor.
 
 ## Licenses and SPDX tags
 
