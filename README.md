@@ -21,9 +21,7 @@ flowchart TD
 ```
 
 This is the goal of the verifier and how it should work when
-development is finished. Currently it behaves like this after you have
-used `tkey-mgt -cmd install`. For test purposes, however, it currently
-waits for commands from the client after power cycling.
+development is finished.
 
 Firmware checks `resetinfo` for what to do: Default is to start the
 app in slot 0.
@@ -42,31 +40,26 @@ computed digest of the app is correct it starts it.
 ```mermaid
 flowchart TD
 
-  A(client) -->|1. load verifier| B(Firmware)
-  B -->|2. measure & start| D(verifier)
-  A -->|3. digest & signature | D
-  D -->|4. reset| B
-  A -->|5. load second| B
-  B -->|6. correct digest? | E(second app)
+  A(client) -->|1. reset| C(running app)
+  A -->|2. load verifier| B(firmware)
+  B -->|3. measure & start| D(verifier)
+  A -->|4. digest & signature | D
+  D -->|5. reset| B
+  A -->|6. load second| B
+  B -->|7. correct digest? | E(second app)
 ```
 
-The above diagram assumes that the firmware is running in a state
-where it is waiting for commands from a client. This will not really
-be the case in the coming Castor version of the TKey, but simplified
-here to better explain the verifier's role.
-
-1. The client loads the verifier.
-2. Firmware measures and starts verifier.
-3. Client sends the digest and signature of the next app.
-4. verifier verifies the signature over the digest. If it verifies, it
+1. The client asks the running device app to reset TKey into
+   load-app-from-client mode
+2. The client loads the verifier.
+3. Firmware measures and starts verifier.
+4. Client sends the digest and signature of the next app.
+5. verifier verifies the signature over the digest. If it verifies, it
    sends the digest to the firmware and resets the TKey, making
    firmware start again.
-5. Client loads the next app.
-6. Firmware measures the next app. If it has the correct, already
+6. Client loads the next app.
+7. Firmware measures the next app. If it has the correct, already
    verified digest, it starts it.
-
-The coming Castor will be slightly more complicated since it will also
-require the client to tell the running device app to reset at first.
 
 ## Build
 
@@ -75,6 +68,13 @@ To build both client app, `tkey-mgt`, and the device app,
 
 ```
 ./build.sh
+```
+
+To override default behavior and boot into command mode the verifier
+app can be built with `BOOT_INTO_WAIT_FOR_COMMAND` defined like so:
+
+```
+make EXTRA_CFLAGS=-DBOOT_INTO_WAIT_FOR_COMMAND
 ```
 
 ## Use
@@ -103,14 +103,13 @@ To install the verifier on the flash, use the `tkeyimage` tool in
 
 ```
 $ cp verifier/app.bin ../tillitis-key1/hw/application_fpga/
+$ cp testapp/testapp_a.bin ../tillitis-key1/hw/application_fpga/
 $ cd ../tillitis-key1/hw/application_fpga/
-$ ./tools/tkeyimage/tkeyimage -f -app0 verifier.bin -o flash_image.bin
-$ make FLASH_APP_0=verifier.bin prog_flash
+$ ./tools/tkeyimage/tkeyimage -f -app0 verifier.bin -app1 testapp_a.bin -o flash_image.bin
+$ make FLASH_APP_0=verifier.bin FLASH_APP_1=testapp_a.bin prog_flash
 ```
 
-You will now have a verifier in app slot 0. In the current state of
-development it will wait for commands from the client after starting.
-This is not the end goal, but sufficient for development.
+You will now have a verifier in app slot 0 and testapp_a in slot 1.
 
 You can try talking to it with `tkey-mgt -cmd install`, see
 below.
@@ -121,18 +120,16 @@ below.
 - `tkey-mgt -cmd install -app path`
 
 Command `boot` does a verified boot of the device app specified with
-`-app`. It assumes a TKey running firmware which is waiting for
-commands from client. In the current state of development this
-typically means a Castor prototype with the `defaultapp` in app slot
-0.
+`-app`. It assumes a TKey running an app that supports the reset
+command.
 
 Command `install` installs the device app specified with `-app` in
-slot 1. It assumes you are running a verifier from slot 0 which is
-waiting for commands from the client. See above about producing a
-flash image for this use case. It will automatically reset the TKey
-after installing, telling firmware to start the verifier on flash,
-which will then verify slot 1's digest and reset again to ask firmware
-to start slot 1.
+slot 1. It assumes you are running an app that supports the reset
+command and that a verifier is present in slot 0. See above about
+producing a flash image for this use case. It will automatically reset
+the TKey after installing, telling firmware to start the verifier on
+flash, which will then verify slot 1's digest and reset again to ask
+firmware to start slot 1.
 
 ## Chained Reset
 
@@ -157,17 +154,10 @@ verifier and then load a verified app.
 
 ## TODO
 
-- Change default behaviour of verifier to always start app slot 1,
-  instead of waiting for commands.
-  
 - Investigate what to mix in for the seed for the next app. At least
   mix in a name of the app, so not all device apps verified by the
   verifier get the same seed. Mix in the pubkey (too?), so the seed is
   always dependent on the vendor.
-
-- When installing an app in slot 1, always reset digest and signature
-  first, and detect it on start, so we can resume a botched
-  installation.
 
 - Change state machine to:
 
