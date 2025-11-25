@@ -1,5 +1,10 @@
 .cache
 compile_commands.json
+testapp/*.o
+testapp/app_a.bin
+testapp/app_a.elf
+testapp/app_b.bin
+testapp/app_b.elf
 verifier/*.o
 verifier/app.bin
 verifier/app.elf
