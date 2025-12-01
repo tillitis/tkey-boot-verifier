@@ -7,8 +7,8 @@
 #include <tkey/syscall.h>
 #include <tkey/tk1_mem.h>
 
-#include "app_proto.h"
 #include "../verifier/bv_nad.h"
+#include "app_proto.h"
 
 // clang-format off
 static volatile uint32_t *app_addr      = (volatile uint32_t *) TK1_MMIO_TK1_APP_ADDR;
@@ -134,8 +134,8 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 		// the frame.
 		available = available > hdr->len ? hdr->len : available;
 
-		int nbytes = read(IO_CDC, &cmd[n], CMDLEN_MAXBYTES - n,
-				  available);
+		int nbytes =
+		    read(IO_CDC, &cmd[n], CMDLEN_MAXBYTES - n, available);
 		if (nbytes < 0) {
 			debug_putname();
 			debug_puts("read: buffer overrun\n");

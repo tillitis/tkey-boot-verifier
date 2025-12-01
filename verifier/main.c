@@ -112,7 +112,8 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 	// Is it for us? If not, return error after having discarded
 	// all bytes.
 	if (hdr->endpoint != DST_SW) {
-		debug_puts("verifier: Message not meant for app. endpoint was 0x");
+		debug_puts(
+		    "verifier: Message not meant for app. endpoint was 0x");
 		debug_puthex(hdr->endpoint);
 		debug_lf();
 
