@@ -11,6 +11,8 @@ import (
 	"os"
 	"time"
 
+	"tkey-mgt/sigfile"
+
 	"github.com/tillitis/tkeyclient"
 	"golang.org/x/crypto/blake2s"
 )
@@ -184,7 +186,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	appSig, err := readSig(*sigPath)
+	appSig, err := sigfile.ReadSig(*sigPath)
 	if err != nil {
 		fmt.Printf("couldn't read file: %v\n", err)
 		os.Exit(1)

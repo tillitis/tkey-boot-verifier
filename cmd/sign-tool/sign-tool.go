@@ -9,14 +9,12 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"log"
 	"os"
+
+	"tkey-mgt/sigfile"
 
 	"golang.org/x/crypto/blake2s"
 )
-
-// Use when printing err/diag msgs
-var le = log.New(os.Stderr, "", 0)
 
 func usage() {
 	fmt.Fprintf(flag.CommandLine.Output(), "%s -m FILE -s seckey\n\n", os.Args[0])
@@ -89,7 +87,7 @@ func main() {
 
 	copy(sig.Sig[:], rawSig[:])
 
-	err = writeBase64(*messagePath+".sig", sig, "", true)
+	err = sigfile.WriteBase64(*messagePath+".sig", sig, "", true)
 	if err != nil {
 		fmt.Printf("Couldn't store signature: %v", err)
 		os.Exit(1)
