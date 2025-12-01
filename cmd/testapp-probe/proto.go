@@ -47,12 +47,28 @@ const (
 	fwResetTypeStartClientVer fwResetType = 6
 )
 
+func fwResetTypeFromInt(i int) (fwResetType, error) {
+	if i < int(fwResetTypeStartDefault) || i > int(fwResetTypeStartClientVer) {
+		return 0, fmt.Errorf("invalid reset type: %d", i)
+	}
+
+	return fwResetType(i), nil
+}
+
 type resetDst uint8
 
 const (
-	verifierResetDstApp1    = 0
-	verifierResetDstCmdMode = 1
+	verifierResetDstApp1    resetDst = 0
+	verifierResetDstCmdMode resetDst = 1
 )
+
+func resetDstFromInt(i int) (resetDst, error) {
+	if i < int(verifierResetDstApp1) || i > int(verifierResetDstCmdMode) {
+		return 0, fmt.Errorf("invalid reset dst: %d", i)
+	}
+
+	return resetDst(i), nil
+}
 
 func reset(tk *tkeyclient.TillitisKey, fwType fwResetType, verifierDst resetDst) error {
 	id := 0x01

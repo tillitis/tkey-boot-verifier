@@ -59,14 +59,26 @@ func main() {
 
 	switch *cmd {
 	case "reset":
-		err = reset(tk, fwResetType(*fwResType), resetDst(*verifierResetDst))
+		rstType, err := fwResetTypeFromInt(*fwResType)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v", err)
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			exit(1)
+		}
+
+		dst, err := resetDstFromInt(*verifierResetDst)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			exit(1)
+		}
+
+		err = reset(tk, rstType, dst)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 			exit(1)
 		}
 
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command %s", *cmd)
+		fmt.Fprintf(os.Stderr, "unknown command %s\n", *cmd)
 		exit(1)
 	}
 }
