@@ -113,7 +113,8 @@ func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, sig [ed25519.Signa
 
 	digest := blake2s.Sum256(appBin)
 
-	if verify(tk, digest, sig) != nil {
+	err = verify(tk, digest, sig)
+	if err != nil {
 		return err
 	}
 
