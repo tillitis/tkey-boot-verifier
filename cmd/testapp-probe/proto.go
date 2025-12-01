@@ -35,7 +35,7 @@ var (
 	cmdReset = appCmd{0xfe, "cmdReset", tkeyclient.CmdLen4}
 )
 
-type fwResetType uint32
+type fwResetType uint8
 
 const (
 	fwResetTypeStartDefault   fwResetType = 0

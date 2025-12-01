@@ -46,7 +46,7 @@ var (
 	rspGetPubkey      = appCmd{0x05, "rspGetPubkey", tkeyclient.CmdLen128}
 )
 
-type fwResetType uint32
+type fwResetType uint8
 
 const (
 	fwResetTypeStartDefault   fwResetType = 0
