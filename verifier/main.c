@@ -273,7 +273,6 @@ enum state wait_for_command(enum state state, struct context *ctx,
 		reset(pkt.cmd[1], pkt.cmd[2]);
 		break;
 
-
 	case CMD_UPDATE_APP_INIT: {
 		uint32_t app_size = 0;
 
@@ -321,7 +320,7 @@ int main(void)
 	state = STATE_WAIT_FOR_COMMAND;
 #endif
 
-	// Pubkey we got from tkeyimage
+	// Vendor pubkey:
 	// 9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
 	uint8_t pubkey[32] = {
 	    0x9b, 0x62, 0x77, 0x33, 0x23, 0xef, 0x41, 0xa1, 0x18, 0x34, 0x82,
