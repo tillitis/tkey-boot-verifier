@@ -214,20 +214,25 @@ func main() {
 	}
 	defer func() { _ = tk.Close() }()
 
+	exit := func(code int) {
+		_ = tk.Close()
+		os.Exit(code)
+	}
+
 	switch *cmd {
 	case "install":
 		if err := updateApp1(tk, appBin, appSig.Sig); err != nil {
 			fmt.Printf("couldn't update app slot 1: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 
 	case "boot":
 		if err := startVerifier(tk, appBin, appSig.Sig); err != nil {
 			fmt.Printf("couldn't load and start verifier: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 	default:
 		flag.Usage()
-		os.Exit(1)
+		exit(1)
 	}
 }

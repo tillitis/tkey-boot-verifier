@@ -44,10 +44,17 @@ func main() {
 	}
 
 	tk := tkeyclient.New()
-	defer func() { _ = tk.Close() }()
+
 	if err = tk.Connect(devPath, tkeyclient.WithSpeed(tkeyclient.SerialSpeed)); err != nil {
 		fmt.Printf("Could not open %s: %v\n", devPath, err)
 		os.Exit(1)
+	}
+
+	defer func() { _ = tk.Close() }()
+
+	exit := func(code int) {
+		_ = tk.Close()
+		os.Exit(code)
 	}
 
 	switch *cmd {
@@ -55,11 +62,11 @@ func main() {
 		err = reset(tk, fwResetType(*fwResType), resetDst(*verifierResetDst))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v", err)
-			os.Exit(1)
+			exit(1)
 		}
 
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %s", *cmd)
-		os.Exit(1)
+		exit(1)
 	}
 }
