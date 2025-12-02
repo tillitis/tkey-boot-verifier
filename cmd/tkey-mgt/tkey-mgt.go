@@ -134,8 +134,8 @@ func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, sig [ed25519.Signa
 }
 
 func waitUntilPortClosed(tk *tkeyclient.TillitisKey) {
-	tk.ReadFrame(rspVerify, 0x01)
-	tk.Close()
+	_, _, _ = tk.ReadFrame(rspVerify, 0x01)
+	_ = tk.Close()
 }
 
 func reconnect(tk *tkeyclient.TillitisKey) {
@@ -154,7 +154,7 @@ func reconnect(tk *tkeyclient.TillitisKey) {
 }
 
 func usage() {
-	fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path -sig path\n%s -cmd install -app path -sig path\n", os.Args[0], os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path -sig path\n%s -cmd install -app path -sig path\n", os.Args[0], os.Args[0])
 	flag.PrintDefaults()
 }
 

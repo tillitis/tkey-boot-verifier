@@ -17,9 +17,9 @@ import (
 )
 
 func usage() {
-	fmt.Fprintf(flag.CommandLine.Output(), "%s -m FILE -s seckey\n\n", os.Args[0])
-	fmt.Fprintf(flag.CommandLine.Output(), "Sign message in FILE and write the result to file.sig.\n")
-	fmt.Fprintf(flag.CommandLine.Output(), "Signatures are produced by Ed25519-signing the Blake2s digest of message.\n\n")
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -m FILE -s seckey\n\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Sign message in FILE and write the result to file.sig.\n")
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Signatures are produced by Ed25519-signing the Blake2s digest of message.\n\n")
 	flag.PrintDefaults()
 }
 
