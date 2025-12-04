@@ -34,6 +34,8 @@ func (c appCmd) String() string {
 var (
 	cmdGetCDI  = appCmd{0x01, "cmdGetCDI", tkeyclient.CmdLen1}
 	rspGetCDI  = appCmd{0x01, "rspGetCDI", tkeyclient.CmdLen128}
+	cmdGetNameVersion  = appCmd{0x02, "cmdGetNameVersion", tkeyclient.CmdLen1}
+	rspGetNameVersion  = appCmd{0x02, "rspGetNameVersion", tkeyclient.CmdLen32}
 	cmdReset = appCmd{0xfe, "cmdReset", tkeyclient.CmdLen4}
 )
 
@@ -95,6 +97,32 @@ func getCDI(tk *tkeyclient.TillitisKey) (string, error) {
 	cdi := fmt.Sprintf("%064x", rx[2:34])
 
 	return cdi, nil
+}
+
+func getNameVersion(tk *tkeyclient.TillitisKey) (*tkeyclient.NameVersion, error) {
+	id := 0x01
+	tx, err := tkeyclient.NewFrameBuf(cmdGetNameVersion, id)
+	if err != nil {
+		return nil, fmt.Errorf("NewFrameBuf: %w", err)
+	}
+
+	tkeyclient.Dump("GetNameVersion tx", tx)
+	if err = tk.Write(tx); err != nil {
+		return nil, fmt.Errorf("write: %w", err)
+	}
+
+	tk.SetReadTimeoutNoErr(2)
+	defer tk.SetReadTimeoutNoErr(0)
+
+	rx, _, err := tk.ReadFrame(rspGetNameVersion, id)
+	if err != nil {
+		return nil, fmt.Errorf("ReadFrame: %w", err)
+	}
+
+	nameVer := &tkeyclient.NameVersion{}
+	nameVer.Unpack(rx[2:])
+
+	return nameVer, nil
 }
 
 func reset(tk *tkeyclient.TillitisKey, fwType fwResetType, verifierDst resetDst) error {

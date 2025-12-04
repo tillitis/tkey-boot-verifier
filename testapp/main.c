@@ -64,6 +64,8 @@ void reset(uint32_t type, enum bv_nad reset_dst)
 static enum state started_commands(enum state state, struct packet pkt)
 {
 	uint8_t rsp[CMDLEN_MAXBYTES] = {0}; // Response
+	size_t rsp_left =
+	    CMDLEN_MAXBYTES; // How many bytes left in response buf
 
 	// Smallest possible payload length (cmd) is 1 byte.
 	switch (pkt.cmd[0]) {
@@ -84,6 +86,27 @@ static enum state started_commands(enum state state, struct packet pkt)
 		memcpy_s(rsp, sizeof(rsp), (void *)cdi, CDI_SIZE);
 
 		appreply(pkt.hdr, CMD_GET_CDI, rsp);
+
+		break;
+
+	case CMD_GET_NAMEVERSION:
+		debug_putname();
+		debug_puts("CMD_GET_NAMEVERSION\n");
+		if (pkt.hdr.len != 1) {
+			// Bad length
+			state = STATE_FAILED;
+			break;
+		}
+
+		memcpy_s(rsp, rsp_left, app_name0, sizeof(app_name0));
+		rsp_left -= sizeof(app_name0);
+
+		memcpy_s(&rsp[4], rsp_left, app_name1, sizeof(app_name1));
+		rsp_left -= sizeof(app_name1);
+
+		memcpy_s(&rsp[8], rsp_left, &app_version, sizeof(app_version));
+
+		appreply(pkt.hdr, CMD_GET_NAMEVERSION, rsp);
 
 		break;
 
