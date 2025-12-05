@@ -70,15 +70,26 @@ slot 1, or loaded by a client app, followed by the app to be verified.
 
 ### Produce flash image
 
-To install the boot verifier on the flash, use the `tkeyimage` tool in
-[tillitis-key1](https://github.com/tillitis/tillitis-key1). Typically:
+To install the boot verifier on the flash we use the `tkeyimage` tool in
+[tillitis-key1](https://github.com/tillitis/tillitis-key1), but
+typically indirectly with make targets. If you just want to create the
+flash image file, use:
 
 ```
 $ cp verifier/app.bin ../tillitis-key1/hw/application_fpga/verifier.bin
 $ cp testapp/app_a.bin ../tillitis-key1/hw/application_fpga/
+$ cp testapp/app_a.bin.sig ../tillitis-key1/hw/application_fpga/
 $ cd ../tillitis-key1/hw/application_fpga/
-$ ./tools/tkeyimage/tkeyimage -f -app0 verifier.bin -app1 app_a.bin -o flash_image.bin
-$ make FLASH_APP_0=verifier.bin FLASH_APP_1=app_a.bin prog_flash
+$ make FLASH_APP_0=verifier.bin FLASH_APP_1=app_a.bin FLASH_APP_1_SIG=app_a.bin.sig flash_image.bin
+```
+
+Now you can use `flash_image.bin` with QEMU.
+
+If you want to flash real hardware with the TP-1 programming board,
+replace the last command with:
+
+```
+$ make FLASH_APP_0=verifier.bin FLASH_APP_1=app_a.bin FLASH_APP_1_SIG=app_a.bin.sig prog_flash
 ```
 
 You will now have a verifier in app slot 0 and testapp/app_a.bin in
