@@ -17,9 +17,10 @@ import (
 )
 
 func usage() {
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -m FILE -s seckey\n\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s [-m|-p] FILE -s seckey\n\n", os.Args[0])
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Sign message in FILE and write the result to file.sig.\n")
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Signatures are produced by Ed25519-signing the Blake2s digest of message.\n\n")
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Or, write pubkey generated from seckey to FILE.\n")
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Signatures and pubkeys are produced by Ed25519-signing the Blake2s digest of message.\n\n")
 	flag.PrintDefaults()
 }
 
@@ -29,26 +30,29 @@ type signature struct {
 	Sig    [64]byte
 }
 
+type pubKey struct {
+	Alg    [2]byte
+	KeyNum [8]byte
+	Key    [ed25519.PublicKeySize]byte
+}
+
 func main() {
 	messagePath := flag.String("m", "", "File containing message to sign")
+	pubkeyPath := flag.String("p", "", "File to write pubkey to")
 	seedPath := flag.String("s", "", "File containing private key seed in hex")
 	flag.Usage = usage
 
 	flag.Parse()
 
-	if *messagePath == "" {
+	noFileArgs := *messagePath == "" && *pubkeyPath == ""
+	tooManyFileArgs := *messagePath != "" && *pubkeyPath != ""
+	if noFileArgs || tooManyFileArgs {
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	if *seedPath == "" {
 		flag.Usage()
-		os.Exit(1)
-	}
-
-	message, err := os.ReadFile(*messagePath)
-	if err != nil {
-		fmt.Printf("couldn't read file: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -75,21 +79,41 @@ func main() {
 
 	privateKey := ed25519.NewKeyFromSeed(seed[:])
 
-	digest := blake2s.Sum256(message)
-	rawSig := [ed25519.SignatureSize]byte(
-		ed25519.Sign(privateKey, digest[:]))
+	if *messagePath != "" {
+		message, err := os.ReadFile(*messagePath)
+		if err != nil {
+			fmt.Printf("couldn't read file: %v\n", err)
+			os.Exit(1)
+		}
 
-	sig := signature{
-		Alg:    [2]byte{'E', 'b'},
-		KeyNum: [8]byte{1, 7},
-		Sig:    [64]byte{},
-	}
+		digest := blake2s.Sum256(message)
+		rawSig := [ed25519.SignatureSize]byte(
+			ed25519.Sign(privateKey, digest[:]))
 
-	copy(sig.Sig[:], rawSig[:])
+		sig := signature{
+			Alg:    [2]byte{'E', 'b'},
+			KeyNum: [8]byte{1, 7},
+			Sig:    [64]byte{},
+		}
 
-	err = sigfile.WriteBase64(*messagePath+".sig", sig, "", true)
-	if err != nil {
-		fmt.Printf("Couldn't store signature: %v", err)
-		os.Exit(1)
+		copy(sig.Sig[:], rawSig[:])
+
+		err = sigfile.WriteBase64(*messagePath+".sig", sig, "", true)
+		if err != nil {
+			fmt.Printf("Couldn't store signature: %v", err)
+			os.Exit(1)
+		}
+	} else if *pubkeyPath != "" {
+		pub := pubKey{
+			Alg:    [2]byte{'E', 'b'},
+			KeyNum: [8]byte{1, 7},
+		}
+		copy(pub.Key[:], privateKey.Public().(ed25519.PublicKey))
+
+		err = sigfile.WriteBase64(*pubkeyPath, pub, "", true)
+		if err != nil {
+			fmt.Printf("Couldn't store pubkey: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }
