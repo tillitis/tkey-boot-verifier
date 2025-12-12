@@ -18,16 +18,17 @@ int reset_if_verified(uint8_t pubkey[32], enum reset_start reset_type,
 
 	// Reset to app slot 1 forcing check of app_digest
 	struct reset rst = {
-		.type = reset_type,
-		.mask = RESET_SEED,
-		.seed_digest = {0},
-		.app_digest = {0},
+	    .type = reset_type,
+	    .mask = RESET_SEED,
+	    .seed_digest = {0},
+	    .app_digest = {0},
 	};
 
 	// Make a digest of our security policy and anything else we
 	// want to measure to be part of the next app's identity.
 	// Currently just the vendor public key.
-	int rc = blake2s(rst.seed_digest, RESET_DIGEST_SIZE, NULL, 0, (const void *)pubkey, 32);
+	int rc = blake2s(rst.seed_digest, RESET_DIGEST_SIZE, NULL, 0,
+			 (const void *)pubkey, 32);
 	assert(rc == 0);
 
 	memcpy_s(rst.app_digest, sizeof(rst.app_digest), app_digest, 32);
