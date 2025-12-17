@@ -2,10 +2,11 @@
 
 ## Introduction
 
-The TKey boot verifier is a boot stage for the Tillitis TKey. With the
-support of the TKey firmware it implements a combination of measured
-boot and verified boot which makes it possible to upgrade the verified
-app without losing data, including the cryptographic keys.
+The TKey boot verifier is a boot stage device app for the Tillitis
+TKey. With the support of the TKey firmware it implements a
+combination of measured boot and verified boot which makes it possible
+to upgrade the verified app without losing data, including the
+cryptographic keys.
 
 ## Requirements
 
@@ -23,8 +24,9 @@ app without losing data, including the cryptographic keys.
   ROM and the firmware should halt execution if it hasn't got the
   right app digest when loaded to RAM.
 
-- Key material of the app verified by boot verifier must be deterministic.
-  If it is updated, key material should be able to stay the same.
+- Key material of the app verified by boot verifier must be
+  deterministic. If the app is updated, key material should be able to
+  stay the same.
 
 - Different apps should not share CDI with each other, only different
   versions of the same app.
@@ -58,7 +60,7 @@ Quick reminder of how the TKey (Castor version) works:
 
 - UDS: Unique Device Secret. This is a per-device hardware secret
   accessible to the firmware once per reset cycle. The UDS is
-  inaccessible to the device app. This is used as an input in the
+  inaccessible to device apps. This is used as an input in the
   measured boot.
 
 - USS: User Supplied Secret. An optional input to the measured boot,
@@ -79,13 +81,13 @@ Quick reminder of how the TKey (Castor version) works:
   to an app. The CDI is computed like this:
 
   ```
-  CDI = BLAKE2S(UDS, digest)
+  CDI = BLAKE2s(UDS, digest)
   ```
 
   or like this, if given a USS:
 
   ```
-  CDI = BLAKE2S(UDS, digest, USS)
+  CDI = BLAKE2s(UDS, digest, USS)
   ```
 
   [BLAKE2s](https://www.rfc-editor.org/rfc/rfc7693) is a cryptographic
@@ -98,26 +100,28 @@ Quick reminder of how the TKey (Castor version) works:
      app:
 
      ```
-     digest = BLAKE2S(entire loaded app in RAM)
+     digest = BLAKE2s(entire loaded app in RAM)
      ```
 
   2. When chaining apps and app[n-1] left a 32 byte seed:
 
      ```
-     digest = BLAKE2S(app[n-1]'s CDI, seed)
+     digest = BLAKE2s(app[n-1]'s CDI, seed)
      ```
 
      In the specific case of the boot verifier we're talking about here,
      app[n-1] is the CDI of the boot verifier itself.
 
      The seed can be whatever the caller wants to include in the
-     measurement, typically a digest of its trust policy.
+     measurement, typically a digest of its internal trust policy.
 
-     Note that the caller's CDI, which is outside of the caller's
-     control since CDI is not writable in app mode on the TKey, is
-     always included in the computation by the firmware. This creates
-     a chain from parent to child, back to the integrity of the
-     original app after power up.
+     Note that the caller's CDI, outside of the caller's control, is
+     always included in the computation by the firmware. This means
+     the entire program and its behaviour is, in a way, a trust
+     policy. Change the verifier and you change the resulting ID.
+     
+     This creates a chain from parent to child, back to the integrity
+     of the original app after power up.
 
      Also note that resulting new CDI is unknowable by the calling
      app, since it doesn't know the UDS. Key material isn't leaked
@@ -127,12 +131,15 @@ Quick reminder of how the TKey (Castor version) works:
   access key, computed like this:
 
   ```
-  key = BLAKE2S(CDI, nonce)
+  key = BLAKE2s(CDI, nonce)
   ```
 
   The nonce is generated when allocating a storage slot and stored in
   the filesystem metadata. A device app can't access any storage slots
   for other CDIs.
+
+For more about how the firmware works, see [the firmware
+documentation](https://github.com/tillitis/tillitis-key1/tree/main/hw/application_fpga/fw).
 
 ## boot verifier
 
@@ -161,19 +168,21 @@ The boot verifier app fetches (from the filesystem or from the client):
 - an app digest for app[n+1]
 - signature(app[n+1] digest)
 
-If the signature verifies agains the public key, it does a
+If the signature verifies against the public key, it does a
 `sys_reset()` system call with `seed` computed like this:
 
 ```
 seed = blake2s(vendor_pubkey)
 ```
 
-Then the firmware takes over as described earlier.
+Then the firmware takes over, as described in the diagram above. For
+specifics, see see [the firmware
+documentation](https://github.com/tillitis/tillitis-key1/tree/main/hw/application_fpga/fw).
 
 In order to satisfy the requirement for different CDI for different
 apps you have to use different vendor key pairs for different apps.
 This might be as easy as using different USS for your TKey, perhaps a
-combination of common a secret USS and a simple name of the app.
+combination of a secret passphrase and a simple name of the app.
 
 XXX Another way of fulfilling this requirement is to introduce an app
 name the boot verifier fetches from the filesystem metadata or from
@@ -188,8 +197,9 @@ flowchart TD
   B -->|reset| A
 ```
 
-Firmware checks what to do: Default is to start the app in slot 0
-where boot verifier resides.
+Firmware checks what to do by checking the `resetinfo` area in memory
+which survives a reset: Default is to start the app in slot 0 where
+boot verifier resides.
 
 The boot verifier reads the data it needs (see above) from the
 filesystem, verifies the signature, computes the seed, and resets,
