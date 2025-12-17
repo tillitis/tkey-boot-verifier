@@ -133,6 +133,32 @@ func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, sig [ed25519.Signa
 	return nil
 }
 
+func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
+	err := reset(tk, fwResetTypeStartFlash0, verifierResetDstCmdMode)
+	if err != nil {
+		return err
+	}
+
+	if expectClose {
+		waitUntilPortClosed(tk)
+		reconnect(tk)
+	} else {
+		time.Sleep(1000 * time.Millisecond)
+	}
+
+	err = setPubkey(tk, pubkey)
+	if err != nil {
+		return err
+	}
+
+	err = reset(tk, fwResetTypeStartDefault, verifierResetDstApp1)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func waitUntilPortClosed(tk *tkeyclient.TillitisKey) {
 	_, _, _ = tk.ReadFrame(rspVerify, 0x01)
 	_ = tk.Close()
@@ -154,14 +180,17 @@ func reconnect(tk *tkeyclient.TillitisKey) {
 }
 
 func usage() {
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path -sig path\n%s -cmd install -app path -sig path\n", os.Args[0], os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path -sig path\n%s -cmd install -app path -sig path\n%s -cmd install-pubkey -pub path\n", os.Args[0], os.Args[0], os.Args[0])
 	flag.PrintDefaults()
 }
 
 func main() {
+	var err error
+
 	cmd := flag.String("cmd", "", "Command")
 	appPath := flag.String("app", "", "Path to app")
 	sigPath := flag.String("sig", "", "Path to signature")
+	pubPath := flag.String("pub", "", "Path to pubkey")
 	port := flag.String("port", "", "TKey serial port")
 	noExpectClose := flag.Bool("no-expect-close", false, "Do not expect serial port to disappear when TKey resets")
 	flag.Usage = usage
@@ -169,33 +198,6 @@ func main() {
 	flag.Parse()
 
 	expectClose = !*noExpectClose
-
-	if *appPath == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	if *sigPath == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	// Both commands need
-	appBin, err := os.ReadFile(*appPath)
-	if err != nil {
-		fmt.Printf("couldn't read file: %v\n", err)
-		os.Exit(1)
-	}
-
-	appSig, err := sigfile.ReadSig(*sigPath)
-	if err != nil {
-		fmt.Printf("couldn't read file: %v\n", err)
-		os.Exit(1)
-	}
-	if appSig.Alg != [2]byte{'E', 'b'} {
-		fmt.Printf("incompatible sig file, excepted ed25519 signature over blake2s digest\n")
-		os.Exit(1)
-	}
 
 	tkeyclient.SilenceLogging()
 
@@ -222,16 +224,86 @@ func main() {
 
 	switch *cmd {
 	case "install":
+		if *appPath == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+
+		if *sigPath == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+
+		appBin, err := os.ReadFile(*appPath)
+		if err != nil {
+			fmt.Printf("couldn't read file: %v\n", err)
+			os.Exit(1)
+		}
+
+		appSig, err := sigfile.ReadSig(*sigPath)
+		if err != nil {
+			fmt.Printf("couldn't read file: %v\n", err)
+			os.Exit(1)
+		}
+		if appSig.Alg != [2]byte{'E', 'b'} {
+			fmt.Printf("incompatible sig file, expected ed25519 signature over blake2s digest\n")
+			os.Exit(1)
+		}
+
 		if err := updateApp1(tk, appBin, appSig.Sig); err != nil {
 			fmt.Printf("couldn't update app slot 1: %v\n", err)
 			exit(1)
 		}
 
 	case "boot":
+		if *appPath == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+
+		if *sigPath == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+
+		appBin, err := os.ReadFile(*appPath)
+		if err != nil {
+			fmt.Printf("couldn't read file: %v\n", err)
+			os.Exit(1)
+		}
+
+		appSig, err := sigfile.ReadSig(*sigPath)
+		if err != nil {
+			fmt.Printf("couldn't read file: %v\n", err)
+			os.Exit(1)
+		}
+		if appSig.Alg != [2]byte{'E', 'b'} {
+			fmt.Printf("incompatible sig file, expected ed25519 signature over blake2s digest\n")
+			os.Exit(1)
+		}
+
 		if err := startVerifier(tk, appBin, appSig.Sig); err != nil {
 			fmt.Printf("couldn't load and start verifier: %v\n", err)
 			exit(1)
 		}
+
+	case "install-pubkey":
+		if *pubPath == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+
+		appPub, err := sigfile.ReadKey(*pubPath)
+		if err != nil {
+			fmt.Printf("couldn't read file: %v\n", err)
+			os.Exit(1)
+		}
+
+		if err := installPubkey(tk, appPub.Key); err != nil {
+			fmt.Printf("couldn't set pubkey: %v\n", err)
+			exit(1)
+		}
+
 	default:
 		flag.Usage()
 		exit(1)
