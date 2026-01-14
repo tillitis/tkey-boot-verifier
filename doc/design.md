@@ -79,20 +79,20 @@ Quick reminder of how the TKey (Castor version) works:
   The CDI is always computed by the trusted and immutable firmware
   after a reset (power cycle or softare reset) before passing control
   to an app. The CDI is computed by the firmware in one of two ways:
-  
-  1. A hash based on the UDS, the digest of the app, and optionally
-     the USS. This is the default.
+
+  1. A hash based on the UDS, a domain byte, the digest of the app,
+     and optionally the USS. This is the default.
 
      ```
-     CDI = BLAKE2s(UDS, blake2s(entire device app in RAM)[, USS])
+     CDI = BLAKE2s(UDS, domain, blake2s(entire device app in RAM)[, USS])
      ```
-  
+
   2. If the previous app asks for it (indicated by setting the
      `RESET_SEED` bit in `struct reset`'s bitmask), compute CDI like
      this instead:
 
      ```
-     CDI = BLAKE2s(UDS, BLAKE2s(app[n-1]'s CDI, seed)¹[, USS])
+     CDI = BLAKE2s(UDS, domain, BLAKE2s(app[n-1]'s CDI, seed)¹[, USS])
      ```
 
      ¹ This part is actually computed by the firmware before actually
@@ -118,9 +118,23 @@ Quick reminder of how the TKey (Castor version) works:
      app, since it doesn't know the UDS. Key material isn't leaked
      either up or down the chain.
 
+  The domain byte is used to separate the following cases:
+
+  | *Bitstring* | *Value* | *Comment*                     |
+  |-------------|---------|-------------------------------|
+  | 00          | 0       | Directly loaded app, no USS   |
+  | 01          | 1       | Directly loaded app, with USS |
+  | 10          | 2       | Chained app, no USS           |
+  | 11          | 3       | Chained app, with USS         |
+
+  - Directly loaded app: the app's BLAKE2s digest is used.
+  - Chained app: the `measured_id` measurement from before a reset is used.
+
+  The rest of the bits in the domain byte are reserved for future use.
+
   The Unique Device Secret, unknowable by the device apps, is used in
-  both CDI measurements and locks the derived secret to this
-  particular hardware.
+  all CDI measurements and locks the derived secret to this particular
+  hardware.
 
   [BLAKE2s](https://www.rfc-editor.org/rfc/rfc7693) is a cryptographic
   hash function.
@@ -133,7 +147,7 @@ documentation](https://github.com/tillitis/tillitis-key1/tree/main/hw/applicatio
 ```mermaid
 sequenceDiagram
     Firmware->>Firmware: LoadFirstStageApp
-    Firmware->>Firmware: CDI = blake2s(UDS, blake2s(First Stage App), USS)
+    Firmware->>Firmware: CDI = blake2s(UDS, domain0/1, blake2s(First Stage App), USS)
     create participant First Stage App
     Firmware->>First Stage App: CDI
     First Stage App->>First Stage App: Fetch(vendor_pubkey, vendor_signature, app_digest)
@@ -145,10 +159,13 @@ sequenceDiagram
     Firmware->>Firmware: Reset
     Firmware->>Firmware: Load Second Stage app
     Firmware->>Firmware: Verify(blake2s(loaded app) == second_stage_app_digest)
-    Firmware->>Firmware: CDI = blake2s(UDS, measured_id, USS)
+    Firmware->>Firmware: CDI = blake2s(UDS, domain2/3, measured_id, USS)
     create participant Second Stage App
     Firmware->>Second Stage App: CDI
 ```
+
+- domain0/1 above: Domain byte is set to 00 or 01.
+- domain2/3 above: Domain byte is set to 10 or 11.
 
 The boot verifier app fetches (from the filesystem or from the client):
 
@@ -172,10 +189,11 @@ measured_id = blake2s(CDI, seed)
 
 Then does a hardware reset, which starts firmware again from the
 beginning. `measured_id` survives the reset and is used for the next
-CDI computation:
+CDI computation, with the domain byte set to 10 or 11 depending if the
+USS is used:
 
 ```
-CDI = blake2s(UDS, measured_id, USS)
+CDI = blake2s(UDS, domain2/3, measured_id, USS)
 ```
 
 In order to satisfy the requirement for different CDI for different
