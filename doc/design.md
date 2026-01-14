@@ -79,20 +79,20 @@ Quick reminder of how the TKey (Castor version) works:
   The CDI is always computed by the trusted and immutable firmware
   after a reset (power cycle or softare reset) before passing control
   to an app. The CDI is computed by the firmware in one of two ways:
-  
-  1. A hash based on the UDS, the digest of the app, and optionally
-     the USS. This is the default.
+
+  1. A hash based on the UDS, a domain byte, the digest of the app,
+     and optionally the USS. This is the default.
 
      ```
-     CDI = BLAKE2s(UDS, blake2s(entire device app in RAM)[, USS])
+     CDI = BLAKE2s(UDS, domain, blake2s(entire device app in RAM)[, USS])
      ```
-  
+
   2. If the previous app asks for it (indicated by setting the
      `RESET_SEED` bit in `struct reset`'s bitmask), compute CDI like
      this instead:
 
      ```
-     CDI = BLAKE2s(UDS, BLAKE2s(app[n-1]'s CDI, seed)¹[, USS])
+     CDI = BLAKE2s(UDS, domain, BLAKE2s(app[n-1]'s CDI, seed)¹[, USS])
      ```
 
      ¹ This part is actually computed by the firmware before actually
@@ -118,6 +118,11 @@ Quick reminder of how the TKey (Castor version) works:
      app, since it doesn't know the UDS. Key material isn't leaked
      either up or down the chain.
 
+  The domain byte is used to separate the following cases:
+
+  - App digest or `measured_id` was used to calculate CDI.
+  - USS was used, or not used, to calculate the CDI.
+
   The Unique Device Secret, unknowable by the device apps, is used in
   both CDI measurements and locks the derived secret to this
   particular hardware.
@@ -133,7 +138,7 @@ documentation](https://github.com/tillitis/tillitis-key1/tree/main/hw/applicatio
 ```mermaid
 sequenceDiagram
     Firmware->>Firmware: LoadFirstStageApp
-    Firmware->>Firmware: CDI = blake2s(UDS, blake2s(First Stage App), USS)
+    Firmware->>Firmware: CDI = blake2s(UDS, domain0, blake2s(First Stage App), USS)
     create participant First Stage App
     Firmware->>First Stage App: CDI
     First Stage App->>First Stage App: Fetch(vendor_pubkey, vendor_signature, app_digest)
@@ -145,7 +150,7 @@ sequenceDiagram
     Firmware->>Firmware: Reset
     Firmware->>Firmware: Load Second Stage app
     Firmware->>Firmware: Verify(blake2s(loaded app) == second_stage_app_digest)
-    Firmware->>Firmware: CDI = blake2s(UDS, measured_id, USS)
+    Firmware->>Firmware: CDI = blake2s(UDS, domain1, measured_id, USS)
     create participant Second Stage App
     Firmware->>Second Stage App: CDI
 ```
@@ -175,7 +180,7 @@ beginning. `measured_id` survives the reset and is used for the next
 CDI computation:
 
 ```
-CDI = blake2s(UDS, measured_id, USS)
+CDI = blake2s(UDS, domain, measured_id, USS)
 ```
 
 In order to satisfy the requirement for different CDI for different
