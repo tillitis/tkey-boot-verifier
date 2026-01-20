@@ -152,13 +152,6 @@ verifier and then load a verified app.
 | START_CLIENT_VER          | H(verifier Y) | BV_NAD_WAIT_FOR_COMMAND | Verifier Y from client     |
 | START_CLIENT_VER          | H(app B)      | -                       | App B from client          |
 
-## TODO
-
-- Investigate what to mix in for the seed for the next app. At least
-  mix in a name of the app, so not all device apps verified by the
-  verifier get the same seed. Mix in the pubkey (too?), so the seed is
-  always dependent on the vendor.
-
 ## Licenses and SPDX tags
 
 Unless otherwise noted, the project sources are copyright Tillitis AB,
