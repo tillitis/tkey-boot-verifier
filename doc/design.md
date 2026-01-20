@@ -29,7 +29,7 @@ cryptographic keys.
   stay the same.
 
 - Different apps should not share CDI with each other, only different
-  versions of the same app.
+  versions of the same app should share CDI.
 
 - The boot verifier must not know the key material of the verified
   app, and vice versa.
@@ -40,6 +40,12 @@ cryptographic keys.
 - An app should always be able to use the Compund Device Identifier
   (CDI) to derive key material.
 
+- The boot verifier should have support from firmware to do
+  measurements.
+
+- The boot verifier should ask firmware to measure its security
+  policy, for instance a vendor public key.
+
 ## Firmware, measurements, and storage access
 
 Quick reminder of how the TKey (Castor version) works:
@@ -48,11 +54,11 @@ Quick reminder of how the TKey (Castor version) works:
   about the current running device app as app[n], the previous app as
   app[n-1] and the app that is going to start as app[n+1].
 
-  Apps calling `sys_reset()` pass a reset type, and for some of them
-  an expected app[n+1] digest. If using these reset types, firmware
-  will halt execution if the expected and measured app digest of
-  app[n+1] don't match. An app calling `sys_reset()` can also pass a
-  seed to be included in the CDI (see below).
+  Apps calling `sys_reset()` pass a reset type, and for some of these
+  types also an expected app[n+1] digest. When using these reset
+  types, firmware will halt execution if the expected and measured app
+  digest of app[n+1] don't match. An app calling `sys_reset()` can
+  also pass a seed to be included in the CDI (see below).
 
 - Trusted boot verifier: When starting after power up, the default reset
   type is starting from flash slot 0 (boot verifier) with an expected
@@ -66,60 +72,45 @@ Quick reminder of how the TKey (Castor version) works:
 - USS: User Supplied Secret. An optional input to the measured boot,
   typically a digest of a passphrase inserted by the user.
 
-- CDI: Compound Device Identifier. CDI represents a combination of a
+- CDI: Compound Device Identifier. The CDI is a secret that can be
+  used to create key material. CDI represents a combination of a
   particular hardware and software chain.
-
-  By default it is computed using the UDS, the measurement
-  of the first immutable software after reset, and an optional User
-  Supplied Secret (USS). CDI can optionally be based on other
-  measurements.
-
-  The CDI is a secret. It can be used to derive new key material.
 
   The CDI is always computed by the trusted and immutable firmware
   after a reset (power cycle or softare reset) before passing control
-  to an app. The CDI is computed like this:
-
-  ```
-  CDI = BLAKE2s(UDS, digest)
-  ```
-
-  or like this, if given a USS:
-
-  ```
-  CDI = BLAKE2s(UDS, digest, USS)
-  ```
-
-  [BLAKE2s](https://www.rfc-editor.org/rfc/rfc7693) is a cryptographic
-  hash function.
-
-  The digest passed to the BLAKE2s function is always computed by the
-  firmware. It can be computed in two different ways:
-
-  1. The default case, measuring the loaded, but not yet started, device
-     app:
+  to an app. The CDI is computed by the firmware in one of two ways:
+  
+  1. A hash based on the UDS, the digest of the app, and optionally
+     the USS. This is the default.
 
      ```
-     digest = BLAKE2s(entire loaded app in RAM)
+     CDI = BLAKE2s(UDS, blake2s(entire device app in RAM)[, USS])
+     ```
+  
+  2. If the previous app asks for it (indicated by setting the
+     `RESET_SEED` bit in `struct reset`'s bitmask), compute CDI like
+     this instead:
+
+     ```
+     CDI = BLAKE2s(UDS, BLAKE2s(app[n-1]'s CDI, seed)¹[, USS])
      ```
 
-  2. When chaining apps and app[n-1] left a 32 byte seed:
-
-     ```
-     digest = BLAKE2s(app[n-1]'s CDI, seed)
-     ```
+     ¹ This part is actually computed by the firmware before actually
+     doing the reset in order not to leak the CDI over the reset.
 
      In the specific case of the boot verifier we're talking about here,
      app[n-1] is the CDI of the boot verifier itself.
 
      The seed can be whatever the caller wants to include in the
-     measurement, typically a digest of its internal trust policy.
+     measurement, typically a digest of its trust policy, for example
+     a vendor public key.
 
      Note that the caller's CDI, outside of the caller's control, is
      always included in the computation by the firmware. This means
-     the entire program and its behaviour is, in a way, a trust
-     policy. Change the verifier and you change the resulting ID.
-     
+     the entire program and its behaviour is, in a way, also a
+     measured trust policy. Change the boot verifier and you change
+     the resulting ID.
+
      This creates a chain from parent to child, back to the integrity
      of the original app after power up.
 
@@ -127,16 +118,12 @@ Quick reminder of how the TKey (Castor version) works:
      app, since it doesn't know the UDS. Key material isn't leaked
      either up or down the chain.
 
-- Access to any allocated app storage is protected by firmware by an
-  access key, computed like this:
+  The Unique Device Secret, unknowable by the device apps, is used in
+  both CDI measurements and locks the derived secret to this
+  particular hardware.
 
-  ```
-  key = BLAKE2s(CDI, nonce)
-  ```
-
-  The nonce is generated when allocating a storage slot and stored in
-  the filesystem metadata. A device app can't access any storage slots
-  for other CDIs.
+  [BLAKE2s](https://www.rfc-editor.org/rfc/rfc7693) is a cryptographic
+  hash function.
 
 For more about how the firmware works, see [the firmware
 documentation](https://github.com/tillitis/tillitis-key1/tree/main/hw/application_fpga/fw).
@@ -154,10 +141,11 @@ sequenceDiagram
     First Stage App->>First Stage App: seed = blakes2(vendor_pubkey)
     destroy First Stage App
     First Stage App->>Firmware: seed, second_stage_app_digest
+    Firmware->>Firmware: measured_id = blake2s(CDI, seed)
     Firmware->>Firmware: Reset
     Firmware->>Firmware: Load Second Stage app
     Firmware->>Firmware: Verify(blake2s(loaded app) == second_stage_app_digest)
-    Firmware->>Firmware: CDI = blake2s(UDS, previous-CDI, seed, USS)
+    Firmware->>Firmware: CDI = blake2s(UDS, measured_id, USS)
     create participant Second Stage App
     Firmware->>Second Stage App: CDI
 ```
@@ -175,18 +163,25 @@ If the signature verifies against the public key, it does a
 seed = blake2s(vendor_pubkey)
 ```
 
-Then the firmware takes over, as described in the diagram above. For
-specifics, see see [the firmware
-documentation](https://github.com/tillitis/tillitis-key1/tree/main/hw/application_fpga/fw).
+When the boot verifier asks for a reset, the firmware measures this
+seed, first with app[n]'s CDI:
+
+```
+measured_id = blake2s(CDI, seed)
+```
+
+Then does a hardware reset, which starts firmware again from the
+beginning. `measured_id` survives the reset and is used for the next
+CDI computation:
+
+```
+CDI = blake2s(UDS, measured_id, USS)
+```
 
 In order to satisfy the requirement for different CDI for different
 apps you have to use different vendor key pairs for different apps.
 This might be as easy as using different USS for your TKey, perhaps a
 combination of a secret passphrase and a simple name of the app.
-
-XXX Another way of fulfilling this requirement is to introduce an app
-name the boot verifier fetches from the filesystem metadata or from
-the client. Discuss!
 
 ## Start from flash
 
@@ -197,14 +192,14 @@ flowchart TD
   B -->|reset| A
 ```
 
-Firmware checks what to do by checking the `resetinfo` area in memory
-which survives a reset: Default is to start the app in slot 0 where
-boot verifier resides.
+Firmware checks what to do by checking the reset type in the
+`resetinfo` area in memory which survives a reset: Default is to start
+the app in slot 0 where boot verifier resides.
 
 The boot verifier reads the data it needs (see above) from the
-filesystem, verifies the signature, computes the seed, and resets,
-passing along the reset type app "start from slot 1", digest of
-app[n+1], and the seed.
+filesystem, verifies the signature over the app digest, computes the
+seed, and does a `sys_reset()`, passing along the reset type app
+"start from slot 1", digest of app[n+1], and the seed.
 
 ## Start from client
 
@@ -223,9 +218,9 @@ flowchart TD
 2. Firmware measures and starts boot verifier.
 3. Client sends the digest, signature, and vendor public key of
    app[n+1]
-4. boot verifier verifies the signature. If it verifies, it sends the
-   digest and `seed` to the firmware and resets the TKey with the
-   reset type "start verified from client".
+4. boot verifier verifies the signature. If it verifies, it calls
+   `sys_reset()` with verified digest, and seed with the reset type
+   set to "start verified from client".
 5. Client loads the app[n+1].
 6. Firmware measures the app. If it has the correct digest it computes
    a new CDI and passes control to the app.
