@@ -16,11 +16,15 @@ See [the design document](doc/design.md) for more.
 
 It currently supports:
 
-- verifying an app from the client. Your client app will typically
-  first reset and load the boot verifier. Then reset again and load
-  another app. See the `boot` command in `tkey-mgt`.
+- Running from app slot 0 on the flash filesystem, verifying the app
+  in slot 1. This is the default behaviour.
 
-- installing a device app in slot 1. See the `install` command. This
+- Verifying an app from the client. Your client app will typically
+  first ask the currently running app to reset and then load the boot
+  verifier. Then reset again and load another app. See the `boot`
+  command in `tkey-mgt`.
+
+- Installing a device app in slot 1. See the `install` command. This
   needs an installed boot verifier to talk to. The boot verifier *must*
   be installed in slot 0 and its digest noted in firmware, since it
   needs privileged access to the filesystem to be able to install
@@ -31,7 +35,8 @@ It currently supports:
   in slot 1.
 
 - tkey-mgt always sends a reset request to the currently running app
-  for both the `boot` and `install` commands.
+  for both the `boot` and `install` commands. The reset request is
+  currently unknown to most apps.
 
 ## Build
 
