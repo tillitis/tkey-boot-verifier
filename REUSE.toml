@@ -9,6 +9,7 @@ SPDX-License-Identifier = "BSD-2-Clause"
 
 [[annotations]]
 path = [
+     ".gitmodules",
      ".clang-format",
      ".editorconfig",
      ".gitignore",

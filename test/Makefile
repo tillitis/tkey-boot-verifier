@@ -1,6 +1,6 @@
 CC = clang
 
-LIBDIR = ../../tkey-libs
+LIBDIR = ../tkey-libs
 APPDIR = ../verifier
 
 CMOCKA_CONFIG = \
@@ -25,6 +25,7 @@ TEST_CFILES= \
 	$(LIBDIR)/libcommon/lib.c \
 	$(LIBDIR)/monocypher/monocypher.c \
 	$(LIBDIR)/monocypher/monocypher-ed25519.c \
+	$(LIBDIR)/blake2s/blake2s.c
 
 all: tests/test_update tests/test_update_order tests/test_verify
 

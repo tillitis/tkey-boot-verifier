@@ -39,7 +39,8 @@ To build both client app, `tkey-mgt`, and the device app,
 `verifier`, run:
 
 ```
-./build.sh
+git submodules init
+make
 ```
 
 To override default behavior and boot into command mode the verifier

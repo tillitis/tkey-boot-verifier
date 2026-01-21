@@ -11,7 +11,7 @@ IMAGE=ghcr.io/tillitis/tkey-builder:5rc2
 OBJCOPY ?= llvm-objcopy
 
 P := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-LIBDIR ?= $(P)/../tkey-libs
+LIBDIR ?= $(P)/tkey-libs
 
 CC = clang
 
@@ -34,6 +34,7 @@ LDFLAGS=-T $(LIBDIR)/app.lds -L $(LIBDIR) -lcommon -lcrt0 -lmonocypher -lsyscall
 
 .PHONY: all
 all: \
+    tkey-libs \
     verifier/app.bin \
     sign-tool \
     tkey-mgt \
@@ -42,6 +43,10 @@ all: \
     testapp/app_a.bin.sig \
     testapp/app_b.bin \
     testapp/app_b.bin.sig \
+
+.PHONY: tkey-libs
+tkey-libs:
+	make -C tkey-libs
 
 # Create compile_commands.json for clangd and LSP
 .PHONY: clangd
@@ -108,6 +113,7 @@ clean:
 	rm -f sign-tool
 	rm -f tkey-mgt verifier/app.bin verifier/app.elf $(VERIFIEROBJS)
 	rm -f cmd/tkey-mgt/verifier.bin
+	make -C tkey-libs clean
 	make -C test clean
 	rm -f $(TESTAPPOBJS)
 	rm -f testapp/app_a.bin testapp/app_a.bin.sig testapp/app_a.elf

@@ -19,13 +19,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           # fetch-depth: 0
+          submodules: 'true'
           persist-credentials: false
 
       - name: check c code formatting
         run: make checkfmt
 
       - name: make
-        run: ./build.sh
+        run: make
 
       - name: test
         run: make -C test test clean
