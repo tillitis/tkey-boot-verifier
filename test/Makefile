@@ -15,11 +15,18 @@ CFLAGS = \
 	-I lib/cmocka/include -I $(LIBDIR) -I $(LIBDIR)/include \
 	$(CMOCKA_CONFIG) \
 
+# Use own CFLAGS for cmocka to build with host's include files.
+CMOCKA_CFLAGS = \
+	-static -std=gnu99 -O2 -g -Wall -Werror=implicit-function-declaration \
+	-Wno-incompatible-library-redeclaration \
+	-I lib/cmocka/include \
+	$(CMOCKA_CONFIG) \
+
 LDFLAGS += \
 	   -Wl,--wrap=sys_reset
 
 TEST_CFILES= \
-	lib/cmocka/src/cmocka.c \
+	lib/cmocka/src/cmocka.o \
 	platform/assert_halt.c \
 	platform/fakesys.c \
 	$(LIBDIR)/libcommon/lib.c \
@@ -33,6 +40,9 @@ test: tests/test_update tests/test_update_order tests/test_verify
 	./tests/test_update
 	./tests/test_update_order
 	./tests/test_verify
+
+lib/cmocka/src/cmocka.o: lib/cmocka/src/cmocka.c
+	$(CC) $(CMOCKA_CFLAGS) -c lib/cmocka/src/cmocka.c -o lib/cmocka/src/cmocka.o
 
 TEST_UPDATE_CFILES = tests/test_update.c $(TEST_CFILES) $(APPDIR)/update.c
 tests/test_update: $(TEST_UPDATE_CFILES) Makefile
@@ -63,3 +73,4 @@ clean:
 	rm -f tests/test_update
 	rm -f tests/test_update_order
 	rm -f tests/test_verify
+	rm -f lib/cmocka/src/cmocka.o

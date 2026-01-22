@@ -3,6 +3,7 @@
 
 #include <monocypher/monocypher-ed25519.h>
 #include <stdbool.h>
+#include <string.h>
 #include <tkey/assert.h>
 #include <tkey/debug.h>
 #include <tkey/led.h>
