@@ -19,24 +19,29 @@
 struct state {
 	uint8_t digest[32];
 	uint8_t signature[64];
+	uint8_t pubkey[32];
 	uint32_t app_size;
 	uint8_t app[APP_SLOT_1_SIZE];
 };
 
 struct state state = {0};
 
-int sys_get_digsig(uint8_t digest[32], uint8_t signature[64])
+int sys_get_digsig(uint8_t digest[32], uint8_t signature[64],
+		   uint8_t pubkey[32])
 {
 	memcpy(digest, state.digest, sizeof(state.digest));
 	memcpy(signature, state.signature, sizeof(state.signature));
+	memcpy(pubkey, state.pubkey, sizeof(state.pubkey));
 
 	return 0;
 }
 
-void fakesys_set_digsig(uint8_t digest[32], uint8_t signature[64])
+void fakesys_set_digsig(uint8_t digest[32], uint8_t signature[64],
+			uint8_t pubkey[32])
 {
 	memcpy(state.digest, digest, sizeof(state.digest));
 	memcpy(state.signature, signature, sizeof(state.signature));
+	memcpy(state.pubkey, pubkey, sizeof(state.pubkey));
 }
 
 int sys_preload_delete(void)
@@ -45,7 +50,7 @@ int sys_preload_delete(void)
 	uint8_t signature[64] = {0};
 
 	state.app_size = 0;
-	fakesys_set_digsig(digest, signature);
+	fakesys_set_digsig(digest, signature, state.pubkey);
 	memset(state.app, 0xff, sizeof(state.app));
 
 	return 0;
@@ -83,7 +88,7 @@ int sys_preload_store_fin(size_t len, uint8_t digest[32], uint8_t signature[64])
 		return -1;
 	}
 
-	fakesys_set_digsig(digest, signature);
+	fakesys_set_digsig(digest, signature, state.pubkey);
 	state.app_size = len;
 
 	return 0;
