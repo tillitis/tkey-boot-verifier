@@ -60,7 +60,7 @@ int __wrap_sys_reset(struct reset *rst, size_t len)
 	return 0;
 }
 
-static void test_should_boot_verified_flash_app_1(void **state)
+static void test_reset_if_verified_w_valid_signature(void **state)
 {
 	uint8_t signature[64];
 	uint8_t pubkey[32];
@@ -91,7 +91,7 @@ static void test_should_boot_verified_flash_app_1(void **state)
 	reset_if_verified(pubkey, START_FLASH1_VER, digest, signature);
 }
 
-static void test_should_not_boot_non_verified_flash_app_1(void **state)
+static void test_reset_if_verified_w_invalid_signature(void **state)
 {
 	uint8_t signature[64];
 	uint8_t pubkey[32];
@@ -114,8 +114,8 @@ static void test_should_not_boot_non_verified_flash_app_1(void **state)
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
-	    cmocka_unit_test(test_should_boot_verified_flash_app_1),
-	    cmocka_unit_test(test_should_not_boot_non_verified_flash_app_1),
+	    cmocka_unit_test(test_reset_if_verified_w_valid_signature),
+	    cmocka_unit_test(test_reset_if_verified_w_invalid_signature),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
