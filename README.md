@@ -17,12 +17,8 @@ See [the design document](doc/design.md) for more.
 It currently supports:
 
 - Running from app slot 0 on the flash filesystem, verifying the app
-  in slot 1. This is the default behaviour.
-
-- Verifying an app from the client. Your client app will typically
-  first ask the currently running app to reset and then load the boot
-  verifier. Then reset again and load another app. See the `boot`
-  command in `tkey-mgt`.
+  in slot 1 using the pubkey also stored on flash. This is the default
+  behaviour.
 
 - Installing a device app in slot 1. See the `install` command. This
   needs an installed boot verifier to talk to. The boot verifier *must*
@@ -34,9 +30,9 @@ It currently supports:
   when installation has finished, then it verifies and starts the app
   in slot 1.
 
-- tkey-mgt always sends a reset request to the currently running app
-  for both the `boot` and `install` commands. The reset request is
-  currently unknown to most apps.
+- To start tkey-boot-verifier, tkey-mgt always sends a reset request
+  to the currently running app. The reset request is currently unknown
+  to most apps.
 
 ## Build
 
@@ -85,8 +81,9 @@ flash image file, use:
 $ cp verifier/app.bin ../tillitis-key1/hw/application_fpga/verifier.bin
 $ cp testapp/app_a.bin ../tillitis-key1/hw/application_fpga/
 $ cp testapp/app_a.bin.sig ../tillitis-key1/hw/application_fpga/
+$ cp testapp/pubkey ../tillitis-key1/hw/application_fpga/
 $ cd ../tillitis-key1/hw/application_fpga/
-$ make FLASH_APP_0=verifier.bin FLASH_APP_1=app_a.bin FLASH_APP_1_SIG=app_a.bin.sig flash_image.bin
+$ make FLASH_APP_0=verifier.bin FLASH_APP_1=app_a.bin FLASH_APP_1_SIG=app_a.bin.sig FLASH_APP_1_PUB=pubkey flash_image.bin
 ```
 
 Now you can use `flash_image.bin` with QEMU.
@@ -95,7 +92,7 @@ If you want to flash real hardware with the TP-1 programming board,
 replace the last command with:
 
 ```
-$ make FLASH_APP_0=verifier.bin FLASH_APP_1=app_a.bin FLASH_APP_1_SIG=app_a.bin.sig prog_flash
+$ make FLASH_APP_0=verifier.bin FLASH_APP_1=app_a.bin FLASH_APP_1_SIG=app_a.bin.sig FLASH_APP_1_PUB=pubkey prog_flash
 ```
 
 You will now have a verifier in app slot 0 and testapp/app_a.bin in
@@ -140,6 +137,9 @@ tool](https://github.com/tillitis/tkey-sign-cli).
 ## Chained Reset
 
 ### Example: Verified boot from client
+
+Note: This feature (verified boot from client) is currently not
+supported.
 
 Given:
 
