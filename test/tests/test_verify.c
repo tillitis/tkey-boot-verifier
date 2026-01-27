@@ -72,7 +72,7 @@ static void test_reset_if_verified_w_valid_signature(void **state)
 	memcpy(digest, APP_DIGEST, sizeof(digest));
 	memcpy(pubkey_digest, PUBKEY_DIGEST, sizeof(pubkey_digest));
 
-	fakesys_set_digsig(digest, signature, pubkey);
+	fakesys_preload_set_metadata(digest, signature, pubkey);
 
 	struct reset expected_reset = {0};
 	expected_reset.type = START_FLASH1_VER;
@@ -101,7 +101,7 @@ static void test_reset_if_verified_w_invalid_signature(void **state)
 	memcpy(pubkey, PUBKEY, sizeof(pubkey));
 	memcpy(digest, APP_DIGEST, sizeof(digest));
 
-	fakesys_set_digsig(digest, signature, pubkey);
+	fakesys_preload_set_metadata(digest, signature, pubkey);
 
 	// expect_function_calls(__wrap_sys_reset, 0); // Unsupported by cmocka
 

@@ -324,8 +324,8 @@ int main(void)
 	*cpu_mon_last = TK1_RAM_BASE + TK1_RAM_SIZE;
 	*cpu_mon_ctrl = 1;
 
-	if (sys_get_digsig(app_digest, app_signature, pubkey) != 0) {
-		debug_puts("verifier: sys_get_digsig failed\n");
+	if (sys_preload_get_metadata(app_digest, app_signature, pubkey) != 0) {
+		debug_puts("verifier: sys_preload_get_metadata failed\n");
 		assert(1 == 2);
 	}
 
