@@ -245,9 +245,35 @@ enum state wait_for_command(enum state state, struct context *ctx,
 			assert(1 == 2);
 		}
 
+		uint8_t app_digest[32];
+		uint8_t app_signature[64];
+		uint8_t pubkey[32];
+
+		if (sys_preload_get_metadata(app_digest, app_signature,
+					     pubkey) != 0) {
+			debug_puts("verifier:"
+				   " sys_preload_get_metadata failed\n");
+			assert(1 == 2);
+		}
+
 		memcpy_s(rsp, sizeof(rsp), pubkey, 32);
 
 		appreply(pkt.hdr, CMD_GET_PUBKEY, rsp);
+		break;
+
+	case CMD_SET_PUBKEY:
+		if (pkt.hdr.len != 128) {
+			// Bad length
+			assert(1 == 2);
+		}
+
+		if (sys_preload_set_pubkey(&pkt.cmd[1]) != 0) {
+			assert(1 == 2);
+		}
+
+		rsp[0] = STATUS_OK;
+		appreply(pkt.hdr, CMD_SET_PUBKEY, rsp);
+
 		break;
 
 	case CMD_VERIFY: {
@@ -324,11 +350,6 @@ int main(void)
 	*cpu_mon_last = TK1_RAM_BASE + TK1_RAM_SIZE;
 	*cpu_mon_ctrl = 1;
 
-	if (sys_preload_get_metadata(app_digest, app_signature, pubkey) != 0) {
-		debug_puts("verifier: sys_preload_get_metadata failed\n");
-		assert(1 == 2);
-	}
-
 #ifdef TKEY_DEBUG
 	config_endpoints(IO_CDC | IO_DEBUG);
 #endif
@@ -340,6 +361,14 @@ int main(void)
 			break;
 
 		case STATE_VERIFY_FLASH: {
+			if (sys_preload_get_metadata(app_digest, app_signature,
+						     pubkey) != 0) {
+				debug_puts(
+				    "verifier:"
+				    " sys_preload_get_metadata failed\n");
+				assert(1 == 2);
+			}
+
 			debug_puts("verifier: STATE_WAIT_VERIFY_FLASH\n");
 			state = verify_flash(app_digest, app_signature, pubkey);
 			break;
