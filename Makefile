@@ -41,9 +41,12 @@ all: \
     testapp-probe \
     testapp/app_a.bin \
     testapp/app_a.bin.sig \
+    testapp/app_a.bin.sig.1 \
     testapp/app_b.bin \
     testapp/app_b.bin.sig \
+    testapp/app_b.bin.sig.1 \
     testapp/pubkey \
+    testapp/pubkey.1 \
 
 .PHONY: tkey-libs
 tkey-libs:
@@ -104,12 +107,19 @@ testapp/app_b.elf: $(TESTAPPOBJS) testapp/app_b.c
 $(TESTAPPOBJS): $(INCLUDE)/tkey/tk1_mem.h verifier/bv_nad.h
 
 testapp/%.bin.sig: testapp/%.bin sign-tool dev-seed
-	./sign-tool -m $< -s dev-seed
+	./sign-tool -m $< -s dev-seed -o $@
 testapp/pubkey: sign-tool dev-seed
 	./sign-tool -p $@ -s dev-seed
+testapp/%.bin.sig.1: testapp/%.bin sign-tool dev-seed.1
+	./sign-tool -m $< -s dev-seed.1 -o $@
+testapp/pubkey.1: sign-tool dev-seed.1
+	./sign-tool -p $@ -s dev-seed.1
 
-dev-seed: 
-	echo "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f" > dev-seed
+dev-seed:
+	echo "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f" > $@
+
+dev-seed.1:
+	echo "a0a1a2a3a4a5a6a7a8a9aaabacadaeafa0a1a2a3a4a5a6a7a8a9aaabacadaeaf" > $@
 
 .PHONY: clean
 clean:
@@ -119,10 +129,19 @@ clean:
 	make -C tkey-libs clean
 	make -C test clean
 	rm -f $(TESTAPPOBJS)
-	rm -f testapp/app_a.bin testapp/app_a.bin.sig testapp/app_a.elf
-	rm -f testapp/app_b.bin testapp/app_b.bin.sig testapp/app_b.elf
+	rm -f testapp/app_a.bin
+	rm -f testapp/app_a.bin.sig
+	rm -f testapp/app_a.bin.sig.1
+	rm -f testapp/app_a.elf
+	rm -f testapp/app_b.bin
+	rm -f testapp/app_b.bin.sig
+	rm -f testapp/app_b.bin.sig.1
+	rm -f testapp/app_b.elf
+	rm -f testapp/pubkey \
+	rm -f testapp/pubkey.1 \
 	rm -f testapp-probe
 	rm -f dev-seed
+	rm -f dev-seed1
 
 # Uses ../.clang-format
 FMTFILES=verifier/*.[ch] testapp/*.[ch]

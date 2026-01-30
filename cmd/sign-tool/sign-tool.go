@@ -38,6 +38,7 @@ type pubKey struct {
 
 func main() {
 	messagePath := flag.String("m", "", "File containing message to sign")
+	sigPath := flag.String("o", "", "File to write signature to. Default: <message-file>.sig")
 	pubkeyPath := flag.String("p", "", "File to write pubkey to")
 	seedPath := flag.String("s", "", "File containing private key seed in hex")
 	flag.Usage = usage
@@ -98,7 +99,12 @@ func main() {
 
 		copy(sig.Sig[:], rawSig[:])
 
-		err = sigfile.WriteBase64(*messagePath+".sig", sig, "", true)
+		path := *messagePath+".sig"
+		if *sigPath != "" {
+			path = *sigPath
+		}
+
+		err = sigfile.WriteBase64(path, sig, "", true)
 		if err != nil {
 			fmt.Printf("Couldn't store signature: %v", err)
 			os.Exit(1)
