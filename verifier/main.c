@@ -30,6 +30,8 @@ static volatile uint32_t *ver		= (volatile uint32_t *) TK1_MMIO_TK1_VERSION;
 
 #define CHUNK_PAYLOAD_LEN (CMDLEN_MAXBYTES - 1)
 
+#define APP_LED_COLOR (LED_RED | LED_GREEN)
+
 // Incoming packet from client
 struct packet {
 	struct frame_header hdr;      // Framing Protocol header
@@ -170,8 +172,6 @@ void reset(uint32_t type, enum bv_nad reset_dst)
 static enum state verify_flash(uint8_t app_digest[32],
 			       uint8_t app_signature[64], uint8_t pubkey[32])
 {
-	led_set(LED_BLUE);
-
 	reset_if_verified(pubkey, START_FLASH1_VER, app_digest, app_signature);
 
 	return STATE_WAIT_FOR_COMMAND;
@@ -230,7 +230,7 @@ enum state wait_for_command(enum state state, struct context *ctx,
 
 	assert(ctx != NULL);
 
-	led_set(LED_GREEN);
+	led_set(APP_LED_COLOR);
 
 	if (read_command(&pkt.hdr, pkt.cmd) != 0) {
 		debug_puts("read_command returned != 0!\n");
