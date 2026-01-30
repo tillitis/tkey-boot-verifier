@@ -11,7 +11,9 @@
 #include <tkey/platform.h>
 #include <tkey/proto.h>
 #include <tkey/syscall.h>
+#include <tkey/timer.h>
 #include <tkey/tk1_mem.h>
+#include <tkey/touch.h>
 
 #include "app_proto.h"
 #include "bv_nad.h"
@@ -28,6 +30,8 @@ static volatile uint32_t *ver		= (volatile uint32_t *) TK1_MMIO_TK1_VERSION;
 // clang-format on
 
 #define CHUNK_PAYLOAD_LEN (CMDLEN_MAXBYTES - 1)
+#define PRESENCE_TIMEOUT_S 20
+#define PRESENCE_REPEAT_DELAY_S 1
 
 #define APP_LED_COLOR (LED_RED | LED_GREEN)
 
@@ -264,6 +268,17 @@ enum state wait_for_command(enum state state, struct context *ctx,
 		if (pkt.hdr.len != 128) {
 			// Bad length
 			assert(1 == 2);
+		}
+
+		for (uint8_t i = 0; i < 3; i++) {
+			bool present = touch_wait(LED_RED, PRESENCE_TIMEOUT_S);
+			if (!present) {
+				rsp[0] = STATUS_BAD;
+				appreply(pkt.hdr, CMD_SET_PUBKEY, rsp);
+				break;
+			}
+			led_set(LED_BLACK);
+			timer_wait(PRESENCE_REPEAT_DELAY_S);
 		}
 
 		if (sys_preload_set_pubkey(&pkt.cmd[1]) != 0) {
