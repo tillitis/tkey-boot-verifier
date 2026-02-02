@@ -11,8 +11,7 @@ import (
 	"fmt"
 	"os"
 
-	"tkey-mgt/sigfile"
-
+	"github.com/tillitis/tkey-sign-cli/signify"
 	"golang.org/x/crypto/blake2s"
 )
 
@@ -22,18 +21,6 @@ func usage() {
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Or, write pubkey generated from seckey to FILE.\n")
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Signatures and pubkeys are produced by Ed25519-signing the Blake2s digest of message.\n\n")
 	flag.PrintDefaults()
-}
-
-type signature struct {
-	Alg    [2]byte
-	KeyNum [8]byte
-	Sig    [64]byte
-}
-
-type pubKey struct {
-	Alg    [2]byte
-	KeyNum [8]byte
-	Key    [ed25519.PublicKeySize]byte
 }
 
 func main() {
@@ -90,28 +77,20 @@ func main() {
 		rawSig := [ed25519.SignatureSize]byte(
 			ed25519.Sign(privateKey, digest[:]))
 
-		sig := signature{
-			Alg:    [2]byte{'E', 'b'},
-			KeyNum: [8]byte{1, 7},
-			Sig:    [64]byte{},
-		}
+		var sig signify.Signature
 
-		copy(sig.Sig[:], rawSig[:])
+		copy(sig[:], rawSig[:])
 
-		err = sigfile.WriteBase64(*messagePath+".sig", sig, "", true)
-		if err != nil {
+		if err := sig.ToFile(*messagePath+".sig", "", true); err != nil {
 			fmt.Printf("Couldn't store signature: %v", err)
 			os.Exit(1)
 		}
 	} else if *pubkeyPath != "" {
-		pub := pubKey{
-			Alg:    [2]byte{'E', 'b'},
-			KeyNum: [8]byte{1, 7},
-		}
-		copy(pub.Key[:], privateKey.Public().(ed25519.PublicKey))
+		var pub signify.PubKey
 
-		err = sigfile.WriteBase64(*pubkeyPath, pub, "", true)
-		if err != nil {
+		copy(pub[:], privateKey.Public().(ed25519.PublicKey))
+
+		if err := pub.ToFile(*pubkeyPath, "", true); err != nil {
 			fmt.Printf("Couldn't store pubkey: %v\n", err)
 			os.Exit(1)
 		}

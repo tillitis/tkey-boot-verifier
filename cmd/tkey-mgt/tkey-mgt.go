@@ -11,8 +11,7 @@ import (
 	"os"
 	"time"
 
-	"tkey-mgt/sigfile"
-
+	"github.com/tillitis/tkey-sign-cli/signify"
 	"github.com/tillitis/tkeyclient"
 	"golang.org/x/crypto/blake2s"
 )
@@ -187,13 +186,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	appSig, err := sigfile.ReadSig(*sigPath)
-	if err != nil {
+	var appSig signify.Signature
+
+	if err := appSig.FromFile(*sigPath); err != nil {
 		fmt.Printf("couldn't read file: %v\n", err)
-		os.Exit(1)
-	}
-	if appSig.Alg != [2]byte{'E', 'b'} {
-		fmt.Printf("incompatible sig file, excepted ed25519 signature over blake2s digest\n")
 		os.Exit(1)
 	}
 
@@ -222,13 +218,13 @@ func main() {
 
 	switch *cmd {
 	case "install":
-		if err := updateApp1(tk, appBin, appSig.Sig); err != nil {
+		if err := updateApp1(tk, appBin, appSig); err != nil {
 			fmt.Printf("couldn't update app slot 1: %v\n", err)
 			exit(1)
 		}
 
 	case "boot":
-		if err := startVerifier(tk, appBin, appSig.Sig); err != nil {
+		if err := startVerifier(tk, appBin, appSig); err != nil {
 			fmt.Printf("couldn't load and start verifier: %v\n", err)
 			exit(1)
 		}
