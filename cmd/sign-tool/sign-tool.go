@@ -30,10 +30,10 @@ type signature struct {
 	Sig    [64]byte
 }
 
-type pubkey struct {
+type pubKey struct {
 	Alg    [2]byte
 	KeyNum [8]byte
-	Key    [32]byte
+	Key    [ed25519.PublicKeySize]byte
 }
 
 func main() {
@@ -45,7 +45,7 @@ func main() {
 	flag.Parse()
 
 	noFileArgs := *messagePath == "" && *pubkeyPath == ""
-	tooManyFileArgs := *messagePath != "" &&  *pubkeyPath != ""
+	tooManyFileArgs := *messagePath != "" && *pubkeyPath != ""
 	if noFileArgs || tooManyFileArgs {
 		flag.Usage()
 		os.Exit(1)
@@ -104,19 +104,15 @@ func main() {
 			os.Exit(1)
 		}
 	} else if *pubkeyPath != "" {
-		rawPub := [ed25519.PublicKeySize]byte(privateKey.Public().(ed25519.PublicKey))
-
-		pub := pubkey{
+		pub := pubKey{
 			Alg:    [2]byte{'E', 'b'},
 			KeyNum: [8]byte{1, 7},
-			Key:    [32]byte{},
 		}
-
-		copy(pub.Key[:], rawPub[:])
+		copy(pub.Key[:], privateKey.Public().(ed25519.PublicKey))
 
 		err = sigfile.WriteBase64(*pubkeyPath, pub, "", true)
 		if err != nil {
-			fmt.Printf("Couldn't store pubkey: %v", err)
+			fmt.Printf("Couldn't store pubkey: %v\n", err)
 			os.Exit(1)
 		}
 	}
