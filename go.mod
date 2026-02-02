@@ -15,3 +15,4 @@ require (
 	golang.org/x/sys v0.34.0 // indirect
 )
 
+replace github.com/tillitis/tkey-sign-cli => ../tkey-sign-cli
