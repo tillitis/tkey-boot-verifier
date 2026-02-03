@@ -146,6 +146,10 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
 		time.Sleep(1000 * time.Millisecond)
 	}
 
+	fmt.Printf("Your TKey will begin to blink red.\n")
+	fmt.Printf("Confirm the pubkey update by touching the TKey touch sensor three times.\n")
+	fmt.Printf("If you want to abort then wait for the process to timeout.\n")
+
 	err = setPubkey(tk, pubkey)
 	if err != nil {
 		return err
