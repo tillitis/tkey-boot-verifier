@@ -48,6 +48,11 @@ var (
 	rspSetPubkey      = appCmd{0x06, "rspSetPubkey", tkeyclient.CmdLen4}
 )
 
+const devicePresenceTimeoutS = 20
+const devicePresenceRepeatDelayS = 1
+const devicePresenceRepeats = 3
+const setPubkeyTimeout = (devicePresenceTimeoutS + devicePresenceRepeatDelayS) * devicePresenceRepeats
+
 type fwResetType uint8
 
 const (
@@ -131,6 +136,10 @@ func setPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
 	}
 
 	// Read response
+	const margin = 2
+	tk.SetReadTimeoutNoErr(setPubkeyTimeout + margin)
+	defer tk.SetReadTimeoutNoErr(0)
+
 	rx, _, err := tk.ReadFrame(rspSetPubkey, id)
 	if err != nil {
 		return fmt.Errorf("%w", err)
