@@ -74,21 +74,22 @@ func main() {
 		}
 
 		digest := blake2s.Sum256(message)
-		rawSig := [ed25519.SignatureSize]byte(
-			ed25519.Sign(privateKey, digest[:]))
-
-		var sig signify.Signature
-
-		copy(sig[:], rawSig[:])
+		sig, err := signify.NewSignature(signify.B2sEd, ed25519.Sign(privateKey, digest[:]))
+		if err != nil {
+			fmt.Printf("couldn't convert signature")
+			os.Exit(1)
+		}
 
 		if err := sig.ToFile(*messagePath+".sig", "", true); err != nil {
 			fmt.Printf("Couldn't store signature: %v", err)
 			os.Exit(1)
 		}
 	} else if *pubkeyPath != "" {
-		var pub signify.PubKey
-
-		copy(pub[:], privateKey.Public().(ed25519.PublicKey))
+		pub, err := signify.NewPubKey(privateKey.Public().(ed25519.PublicKey))
+		if err != nil {
+			fmt.Printf("couldn't convert to signify pubkey: %v\n", err)
+			os.Exit(1)
+		}
 
 		if err := pub.ToFile(*pubkeyPath, "", true); err != nil {
 			fmt.Printf("Couldn't store pubkey: %v\n", err)
