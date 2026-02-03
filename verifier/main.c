@@ -172,10 +172,20 @@ void reset(uint32_t type, enum bv_nad reset_dst)
 	sys_reset(&rst, 1);
 }
 
+static void signal_issue()
+{
+	for (uint8_t i = 0; i < 3; i++) {
+		led_set(i % 2 ? APP_LED_COLOR : LED_BLACK);
+		timer_wait(1);
+	}
+}
+
 static enum state verify_flash(uint8_t app_digest[32],
 			       uint8_t app_signature[64], uint8_t pubkey[32])
 {
 	reset_if_verified(pubkey, START_FLASH1_VER, app_digest, app_signature);
+
+	signal_issue();
 
 	return STATE_WAIT_FOR_COMMAND;
 }
