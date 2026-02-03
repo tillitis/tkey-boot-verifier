@@ -167,16 +167,10 @@ void reset(uint32_t type, enum bv_nad reset_dst)
 	sys_reset(&rst, 1);
 }
 
-static enum state verify_flash(uint8_t pubkey[32])
+static enum state verify_flash(uint8_t app_digest[32],
+			       uint8_t app_signature[64], uint8_t pubkey[32])
 {
-	uint8_t app_digest[32] = {0};
-	uint8_t app_signature[64] = {0};
-
 	led_set(LED_BLUE);
-
-	if (sys_get_digsig(app_digest, app_signature) != 0) {
-		assert(1 == 2);
-	}
 
 	reset_if_verified(pubkey, START_FLASH1_VER, app_digest, app_signature);
 
@@ -321,19 +315,19 @@ int main(void)
 #ifdef BOOT_INTO_WAIT_FOR_COMMAND
 	state = STATE_WAIT_FOR_COMMAND;
 #endif
-
-	// Vendor pubkey:
-	// 9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
-	uint8_t pubkey[32] = {
-	    0x9b, 0x62, 0x77, 0x33, 0x23, 0xef, 0x41, 0xa1, 0x18, 0x34, 0x82,
-	    0x41, 0x94, 0xe5, 0x51, 0x64, 0xd3, 0x25, 0xeb, 0x9c, 0xdc, 0xc1,
-	    0x0d, 0xdd, 0xa7, 0xd1, 0x0a, 0xde, 0x4f, 0xbd, 0x8f, 0x6d,
-	};
+	uint8_t app_digest[32] = {0};
+	uint8_t app_signature[64] = {0};
+	uint8_t pubkey[32] = {0};
 
 	// Use Execution Monitor on RAM after app
 	*cpu_mon_first = *app_addr + *app_size;
 	*cpu_mon_last = TK1_RAM_BASE + TK1_RAM_SIZE;
 	*cpu_mon_ctrl = 1;
+
+	if (sys_preload_get_metadata(app_digest, app_signature, pubkey) != 0) {
+		debug_puts("verifier: sys_preload_get_metadata failed\n");
+		assert(1 == 2);
+	}
 
 #ifdef TKEY_DEBUG
 	config_endpoints(IO_CDC | IO_DEBUG);
@@ -347,7 +341,7 @@ int main(void)
 
 		case STATE_VERIFY_FLASH: {
 			debug_puts("verifier: STATE_WAIT_VERIFY_FLASH\n");
-			state = verify_flash(pubkey);
+			state = verify_flash(app_digest, app_signature, pubkey);
 			break;
 		}
 

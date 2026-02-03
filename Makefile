@@ -43,6 +43,7 @@ all: \
     testapp/app_a.bin.sig \
     testapp/app_b.bin \
     testapp/app_b.bin.sig \
+    testapp/pubkey \
 
 .PHONY: tkey-libs
 tkey-libs:
@@ -104,6 +105,8 @@ $(TESTAPPOBJS): $(INCLUDE)/tkey/tk1_mem.h verifier/bv_nad.h
 
 testapp/%.bin.sig: testapp/%.bin sign-tool dev-seed
 	./sign-tool -m $< -s dev-seed
+testapp/pubkey: sign-tool dev-seed
+	./sign-tool -p $@ -s dev-seed
 
 dev-seed: 
 	echo "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f" > dev-seed

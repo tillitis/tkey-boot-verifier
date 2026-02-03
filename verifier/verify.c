@@ -4,6 +4,7 @@
 #include <blake2s/blake2s.h>
 #include <monocypher/monocypher-ed25519.h>
 #include <tkey/assert.h>
+#include <tkey/debug.h>
 #include <tkey/lib.h>
 #include <tkey/syscall.h>
 
@@ -13,6 +14,7 @@ int reset_if_verified(uint8_t pubkey[32], enum reset_start reset_type,
 		      uint8_t app_digest[32], uint8_t app_signature[64])
 {
 	if (crypto_ed25519_check(app_signature, pubkey, app_digest, 32) != 0) {
+		debug_puts("verifier: signature verification failed\n");
 		return -1;
 	}
 

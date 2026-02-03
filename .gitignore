@@ -12,6 +12,7 @@ testapp/app_a.elf
 testapp/app_b.bin
 testapp/app_b.bin.sig
 testapp/app_b.elf
+testapp/pubkey
 verifier/*.o
 verifier/app.bin
 verifier/app.elf

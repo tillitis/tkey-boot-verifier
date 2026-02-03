@@ -8,7 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-void fakesys_set_digsig(uint8_t digest[32], uint8_t signature[64]);
+void fakesys_preload_set_metadata(uint8_t digest[32], uint8_t signature[64],
+				  uint8_t pubkey[32]);
 void fakesys_preload_erase(void);
 bool fakesys_preload_range_contains_ff(uint32_t start, uint32_t stop);
 bool fakesys_preload_range_contains_data(uint32_t offset, void *data,
