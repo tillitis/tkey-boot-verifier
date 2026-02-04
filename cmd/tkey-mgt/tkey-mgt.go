@@ -4,8 +4,10 @@
 package main
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -146,6 +148,15 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
 		time.Sleep(1000 * time.Millisecond)
 	}
 
+	currentPubkey, err := getPubkey(tk)
+	if err != nil {
+		return err
+	}
+
+	if bytes.Equal(currentPubkey[:], pubkey[:]) {
+		return errors.New("pubkey already installed")
+	}
+
 	fmt.Printf("Your TKey will begin to blink red.\n")
 	fmt.Printf("Confirm the pubkey update by touching the TKey touch sensor three times.\n")
 	fmt.Printf("If you want to abort then wait for the process to timeout.\n")
@@ -154,6 +165,17 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
 	if err != nil {
 		return err
 	}
+
+	readbackPubkey, err := getPubkey(tk)
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(readbackPubkey[:], pubkey[:]) {
+		return errors.New("something went wrong, pubkey not installed")
+	}
+
+	fmt.Printf("\nPubkey updated\n")
 
 	err = reset(tk, fwResetTypeStartDefault, verifierResetDstApp1)
 	if err != nil {
