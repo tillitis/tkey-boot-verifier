@@ -104,6 +104,7 @@ You can try talking to it with `tkey-mgt -cmd install`, see below.
 
 - `tkey-mgt -cmd boot -app path -sig path-to-signature`
 - `tkey-mgt -cmd install -app path -sig path-to-signature`
+- `tkey-mgt -cmd install-pubkey -pub path`
 
 Command `boot` does a verified boot of the device app specified with
 `-app`. It assumes a TKey running an app that supports the reset
@@ -129,6 +130,16 @@ corresponding to this public key you can use for testing:
 
 ```
 9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
+```
+
+Command `install-pubkey` installs the pubkey specified with `-pub`,
+replacing any installed pubkey. During the installion the user is
+asked to confirm by touching the TKey touch sensor three times.
+
+A pubkey file can be created with:
+
+```
+$ ./sign-tool -p pubkey -s path-to-private-key
 ```
 
 NOTE WELL: This will most likely move to the [tkey-sign
