@@ -74,7 +74,7 @@ Handbook](https://dev.tillitis.se/castor/unlocked/) for instructions.
 The boot verifier can be placed on flash, typically slot 0, then verifying
 slot 1, or loaded by a client app, followed by the app to be verified.
 
-### Produce flash image
+### Produce flash image or flash real hardware
 
 To install the boot verifier on the flash we use the `tkeyimage` tool in
 [tillitis-key1](https://github.com/tillitis/tillitis-key1), but
@@ -90,7 +90,8 @@ $ cd ../tillitis-key1/hw/application_fpga/
 $ make FLASH_APP_0=verifier.bin FLASH_APP_1=app_a.bin FLASH_APP_1_SIG=app_a.bin.sig FLASH_APP_1_PUB=pubkey flash_image.bin
 ```
 
-Now you can use `flash_image.bin` with QEMU.
+You will now have the boot verifier in app slot 0 and
+`testapp/app_a.bin` in slot 1.
 
 If you want to flash real hardware with the TP-1 programming board,
 replace the last command with:
@@ -99,16 +100,31 @@ replace the last command with:
 $ make FLASH_APP_0=verifier.bin FLASH_APP_1=app_a.bin FLASH_APP_1_SIG=app_a.bin.sig FLASH_APP_1_PUB=pubkey prog_flash
 ```
 
-You will now have a verifier in app slot 0 and testapp/app_a.bin in
-slot 1.
+You can try talking to the device (emulated or not) with `tkey-mgt
+-cmd install`, see below.
 
-You can try talking to it with `tkey-mgt -cmd install`, see below.
+### Using QEMU
+
+You can use the `flash_image.bin` file with QEMU, but you have to
+build the QEMU-specific firmware first. Point out you want the boot
+verifier in slot 0 and build like this:
+
+```
+make FLASH_APP_0=verifier.bin qemu_firmware.elf
+```
+
+Remember that you need to use the `qemu/tools/tk1/qemu_usb_mux.py`
+script from our [QEMU repo](https://github.com/tillitis/qemu) to be
+able to talk to the firmware/apps when using QEMU.
 
 ### tkey-mgt
 
-- `tkey-mgt -cmd boot -app path -sig path-to-signature`
-- `tkey-mgt -cmd install -app path -sig path-to-signature`
-- `tkey-mgt -cmd install-pubkey -pub path`
+- `tkey-mgt [-no-expect-close] -cmd boot -app path -sig path-to-signature`
+- `tkey-mgt [-no-expect-close] -cmd install -app path -sig path-to-signature`
+- `tkey-mgt [-no-expect-close] -cmd install-pubkey -pub path`
+
+*NB*: use `-no-expect-close` when running `tkey-mgt` against QEMU. The
+connection behaves differently compared to real hardware.
 
 Command `boot` does a verified boot of the device app specified with
 `-app`. It assumes a TKey running an app that supports the reset
