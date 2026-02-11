@@ -40,7 +40,7 @@ To build both client app, `tkey-mgt`, and the device app,
 `verifier`, run:
 
 ```
-git submodules init
+git submodule update --init --recursive
 make
 ```
 
@@ -142,8 +142,9 @@ A pubkey file can be created with:
 $ ./sign-tool -p pubkey -s path-to-private-key
 ```
 
-NOTE WELL: This will most likely move to the [tkey-sign
-tool](https://github.com/tillitis/tkey-sign-cli).
+NOTE WELL: For real use signing of device apps [the tkey-sign
+tool](https://github.com/tillitis/tkey-sign-cli) with BLAKE2s support
+will most likely be used instead of `sign-tool`.
 
 ## Chained Reset
 
