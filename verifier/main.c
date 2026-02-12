@@ -136,9 +136,14 @@ enum state {
 	STATE_WAIT_FOR_APP_CHUNK,
 };
 
-// Context for the loading of a message
+struct vendor_ctx {
+	uint8_t pubkey[32];
+	bool pubkey_set;
+};
+
 struct context {
 	struct update_ctx update_ctx;
+	struct vendor_ctx vendor_ctx;
 };
 
 static enum state started(void)
@@ -239,8 +244,7 @@ static void wait_for_app_chunk(struct context *ctx)
 	}
 }
 
-enum state wait_for_command(enum state state, struct context *ctx,
-			    uint8_t pubkey[32])
+enum state wait_for_command(enum state state, struct context *ctx)
 {
 	struct packet pkt = {0};
 	uint8_t rsp[CMDLEN_MAXBYTES] = {0}; // Response
@@ -281,7 +285,7 @@ enum state wait_for_command(enum state state, struct context *ctx,
 
 		break;
 
-	case CMD_SET_PUBKEY:
+	case CMD_STORE_PUBKEY:
 		if (pkt.hdr.len != 128) {
 			// Bad length
 			assert(1 == 2);
@@ -291,7 +295,7 @@ enum state wait_for_command(enum state state, struct context *ctx,
 			bool present = touch_wait(LED_RED, PRESENCE_TIMEOUT_S);
 			if (!present) {
 				rsp[0] = STATUS_BAD;
-				appreply(pkt.hdr, CMD_SET_PUBKEY, rsp);
+				appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 				break;
 			}
 			led_set(LED_BLACK);
@@ -300,9 +304,18 @@ enum state wait_for_command(enum state state, struct context *ctx,
 
 		if (sys_preload_set_pubkey(&pkt.cmd[1]) != 0) {
 			rsp[0] = STATUS_BAD;
-			appreply(pkt.hdr, CMD_SET_PUBKEY, rsp);
+			appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 			assert(1 == 2);
 		}
+
+		rsp[0] = STATUS_OK;
+		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
+
+		break;
+
+	case CMD_SET_PUBKEY:
+		memcpy(ctx->vendor_ctx.pubkey, &pkt.cmd[1], 32);
+		ctx->vendor_ctx.pubkey_set = true;
 
 		rsp[0] = STATUS_OK;
 		appreply(pkt.hdr, CMD_SET_PUBKEY, rsp);
@@ -312,11 +325,20 @@ enum state wait_for_command(enum state state, struct context *ctx,
 	case CMD_VERIFY: {
 		uint8_t app_digest[32] = {0};
 		uint8_t app_signature[64] = {0};
+
 		// read digest and sig from client
 		memcpy(app_digest, &pkt.cmd[1], 32);
 		memcpy(app_signature, &pkt.cmd[33], 64);
-		reset_if_verified(pubkey, START_CLIENT_VER, app_digest,
-				  app_signature);
+		if (ctx->vendor_ctx.pubkey_set) {
+			reset_if_verified(ctx->vendor_ctx.pubkey,
+					  START_CLIENT_VER, app_digest,
+					  app_signature);
+		}
+
+		// Pubkey is expected to be set and reset_if_verified() should
+		// only return if we didn't reset.
+		assert(1 == 2);
+
 		break;
 	}
 
@@ -326,6 +348,9 @@ enum state wait_for_command(enum state state, struct context *ctx,
 		}
 
 		reset(pkt.cmd[1], pkt.cmd[2]);
+
+		assert(1 == 2);
+
 		break;
 
 	case CMD_UPDATE_APP_INIT: {
@@ -411,7 +436,7 @@ int main(void)
 
 		case STATE_WAIT_FOR_COMMAND:
 			debug_puts("verifier: STATE_WAIT_FOR_COMMAND\n");
-			state = wait_for_command(state, &ctx, pubkey);
+			state = wait_for_command(state, &ctx);
 			break;
 
 		case STATE_WAIT_FOR_APP_CHUNK:
