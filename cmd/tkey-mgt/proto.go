@@ -38,20 +38,22 @@ var (
 	cmdUpdateAppInit  = appCmd{0x03, "cmdUpdateAppInit", tkeyclient.CmdLen128}
 	cmdUpdateAppChunk = appCmd{0x04, "cmdUpdateAppChunk", tkeyclient.CmdLen128}
 	cmdGetPubkey      = appCmd{0x05, "cmdGetPubkey", tkeyclient.CmdLen1}
-	cmdSetPubkey      = appCmd{0x06, "cmdSetPubkey", tkeyclient.CmdLen128}
+	cmdStorePubkey    = appCmd{0x06, "cmdStorePubkey", tkeyclient.CmdLen128}
+	cmdSetPubkey      = appCmd{0x07, "cmdSetPubkey", tkeyclient.CmdLen128}
 	cmdReset          = appCmd{0xfe, "cmdReset", tkeyclient.CmdLen4}
 
 	rspVerify         = appCmd{0x01, "rspVerify", tkeyclient.CmdLen4}
 	rspUpdateAppInit  = appCmd{0x03, "rspUpdateAppInit", tkeyclient.CmdLen4}
 	rspUpdateAppChunk = appCmd{0x04, "rspUpdateAppChunk", tkeyclient.CmdLen4}
 	rspGetPubkey      = appCmd{0x05, "rspGetPubkey", tkeyclient.CmdLen128}
-	rspSetPubkey      = appCmd{0x06, "rspSetPubkey", tkeyclient.CmdLen4}
+	rspStorePubkey    = appCmd{0x06, "rspStorePubkey", tkeyclient.CmdLen4}
+	rspSetPubkey      = appCmd{0x07, "rspSetPubkey", tkeyclient.CmdLen4}
 )
 
 const devicePresenceTimeoutS = 20
 const devicePresenceRepeatDelayS = 1
 const devicePresenceRepeats = 3
-const setPubkeyTimeout = (devicePresenceTimeoutS + devicePresenceRepeatDelayS) * devicePresenceRepeats
+const storePubkeyTimeout = (devicePresenceTimeoutS + devicePresenceRepeatDelayS) * devicePresenceRepeats
 
 type fwResetType uint8
 
@@ -123,6 +125,41 @@ func getPubkey(tk *tkeyclient.TillitisKey) ([ed25519.PublicKeySize]byte, error) 
 	return pubkey, nil
 }
 
+func storePubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
+	id := 0x01
+
+	tx, err := tkeyclient.NewFrameBuf(cmdStorePubkey, id)
+	if err != nil {
+		return err
+	}
+
+	copy(tx[2:], pubkey[:])
+
+	tkeyclient.Dump("store pubkey tx", tx)
+
+	if err = tk.Write(tx); err != nil {
+		return err
+	}
+
+	// Read response
+	const margin = 2
+	tk.SetReadTimeoutNoErr(storePubkeyTimeout + margin)
+	defer tk.SetReadTimeoutNoErr(0)
+
+	rx, _, err := tk.ReadFrame(rspStorePubkey, id)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	tkeyclient.Dump("set pubkey rx", rx)
+
+	if rx[2] != tkeyclient.StatusOK {
+		return fmt.Errorf("cmdStorePubkey not OK")
+	}
+
+	return nil
+}
+
 func setPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
 	id := 0x01
 
@@ -140,21 +177,14 @@ func setPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
 	}
 
 	// Read response
-	const margin = 2
-	tk.SetReadTimeoutNoErr(setPubkeyTimeout + margin)
-	defer tk.SetReadTimeoutNoErr(0)
-
 	rx, _, err := tk.ReadFrame(rspSetPubkey, id)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	tkeyclient.Dump("set pubkey rx", rx)
-
 	if rx[2] != tkeyclient.StatusOK {
 		return fmt.Errorf("cmdSetPubkey not OK")
 	}
-
 	return nil
 }
 

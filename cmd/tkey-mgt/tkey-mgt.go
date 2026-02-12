@@ -26,14 +26,9 @@ var verifierBinary []byte
 
 var expectClose = true
 
-func verifyAppSignature(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte) error {
-	pubkey, err := getPubkey(tk)
-	if err != nil {
-		return err
-	}
-
+func verifyAppSignature(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byte, bin []byte, sig [ed25519.SignatureSize]byte) error {
 	digest := blake2s.Sum256(bin)
-	if !ed25519.Verify(pubkey[:], digest[:], sig[:]) {
+	if !ed25519.Verify(pubKey[:], digest[:], sig[:]) {
 		return fmt.Errorf("app signature invalid")
 	}
 
@@ -53,7 +48,12 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 		time.Sleep(1000 * time.Millisecond)
 	}
 
-	err = verifyAppSignature(tk, bin, sig)
+	pubkey, err := getPubkey(tk)
+	if err != nil {
+		return err
+	}
+
+	err = verifyAppSignature(tk, pubkey, bin, sig)
 	if err != nil {
 		return err
 	}
@@ -87,9 +87,14 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 	return nil
 }
 
-func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, sig [ed25519.SignatureSize]byte) error {
+func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byte, appBin []byte, sig [ed25519.SignatureSize]byte) error {
 	var err error
 	var secret []byte
+
+	err = verifyAppSignature(tk, pubKey, appBin, sig)
+	if err != nil {
+		return err
+	}
 
 	err = reset(tk, fwResetTypeStartClient, verifierResetDstCmdMode)
 	if err != nil {
@@ -108,8 +113,7 @@ func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, sig [ed25519.Signa
 		return fmt.Errorf("%w", err)
 	}
 
-	err = verifyAppSignature(tk, appBin, sig)
-	if err != nil {
+	if err := setPubkey(tk, pubKey); err != nil {
 		return err
 	}
 
@@ -161,7 +165,7 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
 	fmt.Printf("Confirm the pubkey update by touching the TKey touch sensor three times.\n")
 	fmt.Printf("If you want to abort then wait for the process to timeout.\n")
 
-	err = setPubkey(tk, pubkey)
+	err = storePubkey(tk, pubkey)
 	if err != nil {
 		return err
 	}
@@ -282,13 +286,14 @@ func main() {
 		}
 
 	case "boot":
-		if *appPath == "" {
+		if *appPath == "" || *sigPath == "" || *pubPath == "" {
 			flag.Usage()
 			os.Exit(1)
 		}
 
-		if *sigPath == "" {
-			flag.Usage()
+		appPub, err := sigfile.ReadKey(*pubPath)
+		if err != nil {
+			fmt.Printf("couldn't read file: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -308,7 +313,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := startVerifier(tk, appBin, appSig.Sig); err != nil {
+		if err := startVerifier(tk, appPub.Key, appBin, appSig.Sig); err != nil {
 			fmt.Printf("couldn't load and start verifier: %v\n", err)
 			exit(1)
 		}
