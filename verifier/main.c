@@ -266,12 +266,15 @@ enum state wait_for_command(enum state state, struct context *ctx,
 					     pubkey) != 0) {
 			debug_puts("verifier:"
 				   " sys_preload_get_metadata failed\n");
+			rsp[0] = STATUS_BAD;
+			appreply(pkt.hdr, CMD_GET_PUBKEY, rsp);
 			assert(1 == 2);
 		}
 
-		memcpy_s(rsp, sizeof(rsp), pubkey, 32);
-
+		rsp[0] = STATUS_OK;
+		memcpy_s(rsp + 1, sizeof(rsp) - 1, pubkey, 32);
 		appreply(pkt.hdr, CMD_GET_PUBKEY, rsp);
+
 		break;
 
 	case CMD_SET_PUBKEY:

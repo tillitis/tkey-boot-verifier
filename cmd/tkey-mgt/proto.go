@@ -113,8 +113,12 @@ func getPubkey(tk *tkeyclient.TillitisKey) ([ed25519.PublicKeySize]byte, error) 
 
 	tkeyclient.Dump("get pubkey rx", rx)
 
+	if rx[2] != tkeyclient.StatusOK {
+		return [32]byte{}, fmt.Errorf("cmdGetPubkey not OK")
+	}
+
 	pubkey := [ed25519.PublicKeySize]byte{}
-	copy(pubkey[:], rx[2:2+len(pubkey)])
+	copy(pubkey[:], rx[3:3+len(pubkey)])
 
 	return pubkey, nil
 }
