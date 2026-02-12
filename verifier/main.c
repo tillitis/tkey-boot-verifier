@@ -211,6 +211,8 @@ static void wait_for_app_chunk(struct context *ctx)
 
 		if (update_write(&ctx->update_ctx, &pkt.cmd[1],
 				 CHUNK_PAYLOAD_LEN) != 0) {
+			rsp[0] = STATUS_BAD;
+			appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
 			assert(1 == 2);
 		}
 
@@ -219,6 +221,8 @@ static void wait_for_app_chunk(struct context *ctx)
 
 		if (update_app_is_written(&ctx->update_ctx)) {
 			if (update_finalize(&ctx->update_ctx) != 0) {
+				rsp[0] = STATUS_BAD;
+				appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
 				assert(1 == 2);
 			}
 
@@ -295,6 +299,8 @@ enum state wait_for_command(enum state state, struct context *ctx,
 		}
 
 		if (sys_preload_set_pubkey(&pkt.cmd[1]) != 0) {
+			rsp[0] = STATUS_BAD;
+			appreply(pkt.hdr, CMD_SET_PUBKEY, rsp);
 			assert(1 == 2);
 		}
 
@@ -339,6 +345,8 @@ enum state wait_for_command(enum state state, struct context *ctx,
 
 		if (update_init(&ctx->update_ctx, app_size, app_digest,
 				app_signature) != 0) {
+			rsp[0] = STATUS_BAD;
+			appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
 			assert(1 == 2);
 		}
 
