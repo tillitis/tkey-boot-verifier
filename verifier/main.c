@@ -292,7 +292,8 @@ enum state wait_for_command(enum state state, struct context *ctx)
 		}
 
 		for (uint8_t i = 0; i < 3; i++) {
-			bool present = touch_wait(LED_RED, PRESENCE_TIMEOUT_S);
+			bool present =
+			    touch_wait(APP_LED_COLOR, PRESENCE_TIMEOUT_S);
 			if (!present) {
 				rsp[0] = STATUS_BAD;
 				appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
