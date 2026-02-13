@@ -40,6 +40,11 @@ void appreply(struct frame_header hdr, enum appcmd rspcode, void *buf)
 	enum ioend dst = IO_CDC; // I/O destination.
 
 	switch (rspcode) {
+	case CMD_ERASE_AREAS:
+		len = LEN_4;
+		nbytes = 4;
+		break;
+
 	case CMD_GET_PUBKEY:
 		len = LEN_128;
 		nbytes = 128;
