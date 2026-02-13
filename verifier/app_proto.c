@@ -50,6 +50,11 @@ void appreply(struct frame_header hdr, enum appcmd rspcode, void *buf)
 		nbytes = 4;
 		break;
 
+	case CMD_STORE_PUBKEY:
+		len = LEN_4;
+		nbytes = 4;
+		break;
+
 	case CMD_VERIFY:
 		len = LEN_4;
 		nbytes = 4;

@@ -30,6 +30,10 @@ It currently supports:
   when installation has finished, then it verifies and starts the app
   in slot 1.
 
+- Installing a vendor pubkey on flash.
+
+- Running both verifier and a verified device app sent from client.
+
 - To start tkey-boot-verifier, tkey-mgt always sends a reset request
   to the currently running app. The reset request is currently unknown
   to most apps.
@@ -149,9 +153,6 @@ will most likely be used instead of `sign-tool`.
 ## Chained Reset
 
 ### Example: Verified boot from client
-
-Note: This feature (verified boot from client) is currently not
-supported.
 
 Given:
 
