@@ -40,6 +40,7 @@ var (
 	cmdGetPubkey      = appCmd{0x05, "cmdGetPubkey", tkeyclient.CmdLen1}
 	cmdStorePubkey    = appCmd{0x06, "cmdStorePubkey", tkeyclient.CmdLen128}
 	cmdSetPubkey      = appCmd{0x07, "cmdSetPubkey", tkeyclient.CmdLen128}
+	cmdEraseAreas     = appCmd{0x08, "cmdEraseAreas", tkeyclient.CmdLen1}
 	cmdReset          = appCmd{0xfe, "cmdReset", tkeyclient.CmdLen4}
 
 	rspVerify         = appCmd{0x01, "rspVerify", tkeyclient.CmdLen4}
@@ -48,12 +49,13 @@ var (
 	rspGetPubkey      = appCmd{0x05, "rspGetPubkey", tkeyclient.CmdLen128}
 	rspStorePubkey    = appCmd{0x06, "rspStorePubkey", tkeyclient.CmdLen4}
 	rspSetPubkey      = appCmd{0x07, "rspSetPubkey", tkeyclient.CmdLen4}
+	rspEraseAreas     = appCmd{0x08, "rspEraseAreas", tkeyclient.CmdLen4}
 )
 
 const devicePresenceTimeoutS = 20
 const devicePresenceRepeatDelayS = 1
 const devicePresenceRepeats = 3
-const storePubkeyTimeout = (devicePresenceTimeoutS + devicePresenceRepeatDelayS) * devicePresenceRepeats
+const userPresenceTimeout = (devicePresenceTimeoutS + devicePresenceRepeatDelayS) * devicePresenceRepeats
 
 type fwResetType uint8
 
@@ -73,6 +75,39 @@ const (
 	verifierResetDstApp1    = 0
 	verifierResetDstCmdMode = 1
 )
+
+func eraseAreas(tk *tkeyclient.TillitisKey) error {
+	id := 0x01
+
+	tx, err := tkeyclient.NewFrameBuf(cmdEraseAreas, id)
+	if err != nil {
+		return err
+	}
+
+	tkeyclient.Dump("erase areas tx", tx)
+
+	if err = tk.Write(tx); err != nil {
+		return err
+	}
+
+	// Read response
+	const margin = 2
+	tk.SetReadTimeoutNoErr(userPresenceTimeout + margin)
+	defer tk.SetReadTimeoutNoErr(0)
+
+	rx, _, err := tk.ReadFrame(rspEraseAreas, id)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	tkeyclient.Dump("erase areas rx", rx)
+
+	if rx[2] != tkeyclient.StatusOK {
+		return fmt.Errorf("cmdEraseAreas not OK")
+	}
+
+	return nil
+}
 
 func reset(tk *tkeyclient.TillitisKey, fwType fwResetType, verifierDst resetDst) error {
 	id := 0x01
@@ -143,7 +178,7 @@ func storePubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
 
 	// Read response
 	const margin = 2
-	tk.SetReadTimeoutNoErr(storePubkeyTimeout + margin)
+	tk.SetReadTimeoutNoErr(userPresenceTimeout + margin)
 	defer tk.SetReadTimeoutNoErr(0)
 
 	rx, _, err := tk.ReadFrame(rspStorePubkey, id)

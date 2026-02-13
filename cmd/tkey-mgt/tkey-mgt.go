@@ -35,6 +35,33 @@ func verifyAppSignature(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySiz
 	return nil
 }
 
+func eraseAll(tk *tkeyclient.TillitisKey) error {
+	err := reset(tk, fwResetTypeStartFlash0, verifierResetDstCmdMode)
+	if err != nil {
+		return err
+	}
+
+	if expectClose {
+		waitUntilPortClosed(tk)
+		reconnect(tk)
+	} else {
+		time.Sleep(1000 * time.Millisecond)
+	}
+
+	fmt.Printf("Your TKey will begin to blink yellow.\n")
+	fmt.Printf("Any data stored by any app will be erased and cannot be restored. Confirm the erase operation by touching the TKey touch sensor three times.\n")
+	fmt.Printf("If you want to abort then wait for the process to timeout.\n")
+
+	err = eraseAreas(tk)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("\nAll data erased\n")
+
+	return nil
+}
+
 func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte) error {
 	err := reset(tk, fwResetTypeStartFlash0, verifierResetDstCmdMode)
 	if err != nil {
@@ -210,7 +237,10 @@ func reconnect(tk *tkeyclient.TillitisKey) {
 }
 
 func usage() {
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path -sig path\n%s -cmd install -app path -sig path\n%s -cmd install-pubkey -pub path\n", os.Args[0], os.Args[0], os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path -sig path\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd install -app path -sig path\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd install-pubkey -pub path\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd erase-areas\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
@@ -253,6 +283,12 @@ func main() {
 	}
 
 	switch *cmd {
+	case "erase-areas":
+		if err := eraseAll(tk); err != nil {
+			fmt.Printf("couldn't erase areas: %v\n", err)
+			exit(1)
+		}
+
 	case "install":
 		if *appPath == "" {
 			flag.Usage()
