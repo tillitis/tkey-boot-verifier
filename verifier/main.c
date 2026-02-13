@@ -260,6 +260,37 @@ enum state wait_for_command(enum state state, struct context *ctx)
 
 	// Smallest possible payload length (cmd) is 1 byte.
 	switch (pkt.cmd[0]) {
+	case CMD_ERASE_AREAS:
+		if (pkt.hdr.len != 1) {
+			// Bad length
+			assert(1 == 2);
+		}
+
+		for (uint8_t i = 0; i < 3; i++) {
+			bool present =
+			    touch_wait(APP_LED_COLOR, PRESENCE_TIMEOUT_S);
+			if (!present) {
+				rsp[0] = STATUS_BAD;
+				appreply(pkt.hdr, CMD_ERASE_AREAS, rsp);
+				break;
+			}
+			led_set(LED_BLACK);
+			timer_wait(PRESENCE_REPEAT_DELAY_S);
+		}
+
+		if (sys_erase_areas() != 0) {
+			debug_puts("verifier:"
+				   " sys_erase_areas failed\n");
+			rsp[0] = STATUS_BAD;
+			appreply(pkt.hdr, CMD_ERASE_AREAS, rsp);
+			assert(1 == 2);
+		}
+
+		rsp[0] = STATUS_OK;
+		appreply(pkt.hdr, CMD_ERASE_AREAS, rsp);
+
+		break;
+
 	case CMD_GET_PUBKEY:
 		if (pkt.hdr.len != 1) {
 			// Bad length

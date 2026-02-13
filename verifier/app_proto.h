@@ -15,6 +15,7 @@ enum appcmd {
 	CMD_GET_PUBKEY = 0x05,
 	CMD_STORE_PUBKEY = 0x06,
 	CMD_SET_PUBKEY = 0x07,
+	CMD_ERASE_AREAS = 0x08,
 
 	CMD_RESET = 0xfe,
 	CMD_FW_PROBE = 0xff,
