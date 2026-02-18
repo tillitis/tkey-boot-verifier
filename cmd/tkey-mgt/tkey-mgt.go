@@ -85,6 +85,10 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 		return err
 	}
 
+	fmt.Printf("Your TKey will begin to blink yellow.\n")
+	fmt.Printf("Any installed app will be replaced. To confirm the installation, touch the TKey three times.\n")
+	fmt.Printf("If you want to abort then wait for the process to timeout.\n")
+
 	digest := blake2s.Sum256(bin)
 
 	if err := updateAppInit(tk, len(bin), digest, sig); err != nil {
@@ -110,6 +114,8 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 			return err
 		}
 	}
+
+	fmt.Printf("\nApp installed\n")
 
 	return nil
 }
