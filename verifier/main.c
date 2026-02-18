@@ -244,6 +244,20 @@ static void wait_for_app_chunk(struct context *ctx)
 	}
 }
 
+bool user_is_present(void)
+{
+	for (uint8_t i = 0; i < 3; i++) {
+		bool present = touch_wait(APP_LED_COLOR, PRESENCE_TIMEOUT_S);
+		if (!present) {
+			return false;
+		}
+		led_set(LED_BLACK);
+		timer_wait(PRESENCE_REPEAT_DELAY_S);
+	}
+
+	return true;
+}
+
 enum state wait_for_command(enum state state, struct context *ctx)
 {
 	struct packet pkt = {0};
@@ -322,16 +336,10 @@ enum state wait_for_command(enum state state, struct context *ctx)
 			assert(1 == 2);
 		}
 
-		for (uint8_t i = 0; i < 3; i++) {
-			bool present =
-			    touch_wait(APP_LED_COLOR, PRESENCE_TIMEOUT_S);
-			if (!present) {
-				rsp[0] = STATUS_BAD;
-				appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
-				break;
-			}
-			led_set(LED_BLACK);
-			timer_wait(PRESENCE_REPEAT_DELAY_S);
+		if (!user_is_present()) {
+			rsp[0] = STATUS_BAD;
+			appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
+			break;
 		}
 
 		if (sys_preload_set_pubkey(&pkt.cmd[1]) != 0) {
@@ -391,6 +399,12 @@ enum state wait_for_command(enum state state, struct context *ctx)
 		// Bad length
 		if (pkt.hdr.len != CMDLEN_MAXBYTES) {
 			assert(1 == 2);
+		}
+
+		if (!user_is_present()) {
+			rsp[0] = STATUS_BAD;
+			appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
+			break;
 		}
 
 		// size, digest, signature
