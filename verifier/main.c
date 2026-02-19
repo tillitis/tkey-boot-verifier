@@ -354,6 +354,11 @@ enum state wait_for_command(enum state state, struct context *ctx)
 		break;
 
 	case CMD_SET_PUBKEY:
+		if (pkt.hdr.len != 128) {
+			// Bad length
+			assert(1 == 2);
+		}
+
 		memcpy(ctx->vendor_ctx.pubkey, &pkt.cmd[1], 32);
 		ctx->vendor_ctx.pubkey_set = true;
 
@@ -363,6 +368,11 @@ enum state wait_for_command(enum state state, struct context *ctx)
 		break;
 
 	case CMD_VERIFY: {
+		if (pkt.hdr.len != 128) {
+			// Bad length
+			assert(1 == 2);
+		}
+
 		uint8_t app_digest[32] = {0};
 		uint8_t app_signature[64] = {0};
 
