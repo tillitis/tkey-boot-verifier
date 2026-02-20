@@ -119,7 +119,7 @@ able to talk to the firmware/apps when using QEMU.
 
 ### tkey-mgt
 
-- `tkey-mgt [-no-expect-close] -cmd boot -app path -sig path-to-signature`
+- `tkey-mgt [-no-expect-close] -cmd boot -app path -sig path-to-signature -pub path-to-pubkey`
 - `tkey-mgt [-no-expect-close] -cmd install -app path -sig path-to-signature`
 - `tkey-mgt [-no-expect-close] -cmd install-pubkey -pub path`
 

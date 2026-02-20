@@ -243,7 +243,7 @@ func reconnect(tk *tkeyclient.TillitisKey) {
 }
 
 func usage() {
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path -sig path\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path -sig path -pub path-to-pubkey\n", os.Args[0])
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd install -app path -sig path\n", os.Args[0])
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd install-pubkey -pub path\n", os.Args[0])
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd erase-areas\n", os.Args[0])
