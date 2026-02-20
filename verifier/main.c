@@ -280,16 +280,10 @@ enum state wait_for_command(enum state state, struct context *ctx)
 			assert(1 == 2);
 		}
 
-		for (uint8_t i = 0; i < 3; i++) {
-			bool present =
-			    touch_wait(APP_LED_COLOR, PRESENCE_TIMEOUT_S);
-			if (!present) {
-				rsp[0] = STATUS_BAD;
-				appreply(pkt.hdr, CMD_ERASE_AREAS, rsp);
-				break;
-			}
-			led_set(LED_BLACK);
-			timer_wait(PRESENCE_REPEAT_DELAY_S);
+		if (!user_is_present()) {
+			rsp[0] = STATUS_BAD;
+			appreply(pkt.hdr, CMD_ERASE_AREAS, rsp);
+			break;
 		}
 
 		if (sys_erase_areas() != 0) {
