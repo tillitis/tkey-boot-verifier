@@ -180,12 +180,151 @@ Given:
 The following reset chain can be used to, from the client, first load a
 verifier and then load a verified app.
 
-| Reset Type                | App Digest    | Next App Data           | Next app                   |
+| *reset type*              | *app digest*  | *next app data*         | *next app*                 |
 |---------------------------|---------------|-------------------------|----------------------------|
 | START_DEFAULT (Cold boot) | H(verifier X) | 000...                  | Verifier X from slot 0     |
 | START_FLASH1_VER          | H(app A)      | -                       | App A from slot 1          |
 | START_CLIENT_VER          | H(verifier Y) | BV_NAD_WAIT_FOR_COMMAND | Verifier Y from client     |
 | START_CLIENT_VER          | H(app B)      | -                       | App B from client          |
+
+## Verifier application protocol
+
+`verifier` has a simple application protocol on top of the [TKey
+Framing Protocol](https://dev.tillitis.se/protocol/#framing-protocol).
+
+The protocol has the following requests and responses:
+
+| *command*              | *function*                                         | *length* | *code* | *data*                                              | *response*             |
+|------------------------|----------------------------------------------------|----------|--------|-----------------------------------------------------|------------------------|
+| `CMD_VERIFY`           | Verify an app signature and reset into client mode | 128 B    | 0x01   | 32 B next apps digest, 64 B signature               | none                   |
+| `CMD_UPDATE_APP_INIT`  | Initialize app installation                        | 128 B    | 0x03   | 32 bit LE app size, 32 B app digest, 64 B signature | `CMD_UPDATE_APP_INIT`  |
+| `CMD_UPDATE_APP_CHUNK` | Store a chunk of an app on flash                   | 128 B    | 0x04   | 127 B app data                                      | `CMD_UPDATE_APP_CHUNK` |
+| `CMD_GET_PUBKEY`       | Get the public key installed on flash              | 1 B      | 0x05   | none                                                | `CMD_GET_PUBKEY`       |
+| `CMD_STORE_PUBKEY`     | Store public key on flash                          | 128 B    | 0x06   | 32 B public key                                     | `CMD_STORE_PUBKEY`     |
+| `CMD_SET_PUBKEY`       | Set pubkey used by `CMD_VERIFY`                    | 128 B    | 0x07   | 32 B public key                                     | `CMD_SET_PUBKEY`       |
+| `CMD_ERASE_AREAS`      | Erase all app storage areas                        | 1 B      | 0x08   | none                                                | `CMD_ERASE_AREAS`      |
+| `CMD_RESET`            | Reset TKey                                         | 4 B      | 0xfe   | 1 B reset type, 1 B next app data                   | none                   |
+
+| *response*             | *length* | *code* | *data*                       |
+|------------------------|----------|--------|------------------------------|
+| `CMD_UPDATE_APP_INIT`  | 4 B      | 0x03   | 1 B status                   |
+| `CMD_UPDATE_APP_CHUNK` | 4 B      | 0x04   | 1 B status                   |
+| `CMD_GET_PUBKEY`       | 128 B    | 0x05   | 1 B status + 32 B public key |
+| `CMD_STORE_PUBKEY`     | 4 B      | 0x06   | 1 B status                   |
+| `CMD_SET_PUBKEY`       | 4 B      | 0x07   | 1 B status                   |
+| `CMD_ERASE_AREAS`      | 4 B      | 0x08   | 1 B status                   |
+
+| *status replies* | *code* |
+|------------------|--------|
+| OK               | 0      |
+| BAD              | 1      |
+
+Digests are computed using BLAKE2s with 32-byte digest size.
+Signatures and public keys use ed25519.
+
+Please note that `verifier` also replies with a `NOK` Framing Protocol
+response status if the endpoint field in the FP header is meant for
+the firmware (endpoint = `DST_FW`). This is recommended for
+well-behaved device applications so the client side can probe for the
+firmware.
+
+### Commands
+
+#### `CMD_ERASE_AREAS`
+
+Erases and deallocates all app data storage areas. Requires user
+presence confirmation (touch) three times.
+
+Response:
+
+- `STATUS_OK`
+- `STATUS_BAD`: User presence confirmation failed or erase operation
+  failed.
+
+#### `CMD_GET_PUBKEY`
+
+Retrieves the stored public key.
+
+Response:
+
+- `STATUS_OK`
+- `STATUS_BAD`: Failed to retrieve public key.
+
+#### `CMD_STORE_PUBKEY`
+
+Stores a public key onto the TKey. Any previously installed pubkey is
+replaced. Requires user presence confirmation (touch) three times.
+
+Response:
+
+- `STATUS_OK`
+- `STATUS_BAD`: User presence failed or storage operation failed.
+
+#### `CMD_SET_PUBKEY`
+
+Sets the temporary vendor public key used by the `CMD_VERIFY` command.
+
+Response:
+
+- `STATUS_OK`
+
+#### `CMD_VERIFY`
+
+Verifies the provided signature against the provided digest and the
+public key previously set using the `CMD_SET_PUBKEY` command.
+
+No response is sent. If verification succeeds, the device is reset
+into verified-app-from-client mode, with the allowed app digest set to
+the verified digest. If verification fails, the device is halted.
+
+#### `CMD_RESET`
+
+Performs a system reset using the provided reset type and next app
+data.
+
+Calls the `sys_reset(struct reset *rst)` syscall with the provided
+data in `rst` like so:
+
+```
+rst->type = reset type
+rst->next_app_data = next app data
+```
+
+No response. The device resets immediately.
+
+#### `CMD_UPDATE_APP_INIT`
+
+Initializes application installation. Requires user presence
+confirmation (touch) three times.
+
+After this command succeeds the currently installed app has been
+erased and the client is only allowed to send `CMD_UPDATE_APP_CHUNK`
+commands. The internal update address counter used by
+`CMD_UPDATE_APP_CHUNK` will be set to 0.
+
+Response:
+
+- `STATUS_OK`
+- `STATUS_BAD`: User presence failed or initialization failed.
+
+#### `CMD_UPDATE_APP_CHUNK`
+
+Stores a chunk of an application onto the TKey. The chunk will be
+written to the address pointed to by the internal update address
+counter.
+
+After this command succeeds the size of the provided data has been
+added to the internal update address counter. When the last chunk has
+been stored, the device will automatically reset and the installed app
+started.
+
+All commands must contain 127 bytes of data. If the size of the last
+chunk is not 127, zero-pad until it is.
+
+Response:
+
+- `STATUS_OK`
+- `STATUS_BAD`: Storing app chunk failed.
 
 ## Licenses and SPDX tags
 
