@@ -79,9 +79,11 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 				return -1;
 			}
 
-			// Read as much as is available of what we expect from
-			// the frame.
-			available = available > hdr->len ? hdr->len : available;
+			// Read as much as is available from what
+			// remains
+			if (available > hdr->len - n) {
+				available = hdr->len - n;
+			}
 
 			debug_puts("verifier: reading ");
 			debug_putinthex(available);
