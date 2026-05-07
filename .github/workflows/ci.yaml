@@ -28,8 +28,8 @@ jobs:
       - name: make
         run: make
 
-      - name: test
-        run: make -C test test clean
+      - name: run verifier unit tests
+        run: make -C test/unit test clean
 
   reuse-compliance-check:
     runs-on: ubuntu-latest

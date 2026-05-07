@@ -127,7 +127,7 @@ clean:
 	rm -f tkey-mgt verifier/app.bin verifier/app.elf $(VERIFIEROBJS)
 	rm -f cmd/tkey-mgt/verifier.bin
 	make -C tkey-libs clean
-	make -C test clean
+	make -C test/unit clean
 	rm -f $(TESTAPPOBJS)
 	rm -f testapp/app_a.bin
 	rm -f testapp/app_a.bin.sig
