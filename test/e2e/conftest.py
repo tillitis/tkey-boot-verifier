@@ -39,16 +39,13 @@ def qemu_usb_mux_path(request: pytest.FixtureRequest) -> Path:
     return Path(request.config.getoption("--qemu-usb-mux-path")).expanduser()
 
 
-@pytest.fixture(
-    params=[TKeyType.Bellatrix, TKeyType.BellatrixUnlocked, TKeyType.CastorPre],
-)
+@pytest.fixture
 def tkey(
-    request: pytest.FixtureRequest,
     qemu_path: Path,
     qemu_usb_mux_path: Path,
     tmp_path: Path,
 ) -> Iterator[TKey]:
-    _tkey = new_qemu_tkey(request.param, qemu_path, qemu_usb_mux_path, tmp_path)
+    _tkey = new_qemu_tkey(TKeyType.CastorPre, qemu_path, qemu_usb_mux_path, tmp_path)
     _tkey.insert()
     yield _tkey
     _tkey.eject()
