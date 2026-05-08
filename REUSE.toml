@@ -20,6 +20,9 @@ path = [
      "go.mod",
      "go.sum",
      "verifier/app.bin.sha512",
+     "test/e2e/Pipfile",
+     "test/e2e/Pipfile.lock",
+     "test/e2e/pyproject.toml",
      "test/unit/Makefile",
      "test/unit/.gitignore",
 ]
