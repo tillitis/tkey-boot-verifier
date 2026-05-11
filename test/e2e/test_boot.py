@@ -5,7 +5,7 @@ from subprocess import CalledProcessError
 
 import pytest
 
-from .assets import testapp_a, testapp_b
+from .assets import pubkey1_path, testapp_a, testapp_b
 from .commands import testapp_probe, tkey_mgt
 from .tt.drivers.tkey import TKey
 
@@ -36,3 +36,10 @@ def test_should_not_install_app_with_invalid_signature(tkey: TKey) -> None:
     tkey.insert()
 
     assert testapp_probe.get_nameversion(tkey) == testapp_a.nameversion
+
+
+def test_can_install_another_pubkey(tkey: TKey) -> None:
+    tkey_mgt.install_pubkey(tkey, pubkey1_path, timeout=10)
+    tkey_mgt.update_app_slot_1(tkey, testapp_b.path, testapp_b.sig1_path)
+
+    assert testapp_probe.get_nameversion(tkey) == testapp_b.nameversion

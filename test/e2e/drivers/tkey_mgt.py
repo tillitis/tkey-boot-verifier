@@ -60,3 +60,17 @@ class TKeyMgt:
         args.extend(extra_args)
 
         self.run(tkey, args, timeout)
+
+    def install_pubkey(
+        self,
+        tkey: TKey | None,
+        pubkey_path: str | PathLike[str],
+        extra_args: Sequence[str] = tuple(),
+        timeout: int | None = None,
+    ) -> None:
+        args = []
+        args.extend(["-cmd", "install-pubkey"])
+        args.extend(["-pub", str(pubkey_path)])
+        args.extend(extra_args)
+
+        self.run(tkey, args, timeout)
