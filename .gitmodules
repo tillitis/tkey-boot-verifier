@@ -1,3 +1,6 @@
 [submodule "tkey-libs"]
 	path = tkey-libs
 	url = https://github.com/tillitis/tkey-libs
+[submodule "test/e2e/tt"]
+	path = test/e2e/tt
+	url = https://github.com/tillitis/tkeytest-py
