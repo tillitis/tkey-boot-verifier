@@ -45,6 +45,24 @@ class TKeyMgt:
             args, capture_output=True, check=True, text=True, timeout=timeout
         )
 
+    def boot(
+        self,
+        tkey: TKey | None,
+        app_path: str | PathLike[str],
+        sig_path: str | PathLike[str],
+        pub_path: str | PathLike[str],
+        extra_args: Sequence[str] = tuple(),
+        timeout: int | None = 10,
+    ) -> None:
+        args = []
+        args.extend(["-cmd", "boot"])
+        args.extend(["-app", str(app_path)])
+        args.extend(["-sig", str(sig_path)])
+        args.extend(["-pub", str(pub_path)])
+        args.extend(extra_args)
+
+        self.run(tkey, args, timeout)
+
     def install_app(
         self,
         tkey: TKey | None,

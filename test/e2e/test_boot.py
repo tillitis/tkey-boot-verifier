@@ -40,6 +40,12 @@ def test_should_not_install_app_with_invalid_signature(tkey: TKey) -> None:
 
 def test_can_install_another_pubkey(tkey: TKey) -> None:
     tkey_mgt.install_pubkey(tkey, pubkey1_path, timeout=10)
-    tkey_mgt.update_app_slot_1(tkey, testapp_b.path, testapp_b.sig1_path)
+    tkey_mgt.install_app(tkey, testapp_b.path, testapp_b.sig1_path)
+
+    assert testapp_probe.get_nameversion(tkey) == testapp_b.nameversion
+
+
+def test_can_load_app_from_client_via_verifier_from_client(tkey: TKey) -> None:
+    tkey_mgt.boot(tkey, testapp_b.path, testapp_b.sig1_path, pubkey1_path)
 
     assert testapp_probe.get_nameversion(tkey) == testapp_b.nameversion
