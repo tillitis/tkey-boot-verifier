@@ -228,16 +228,39 @@ func waitUntilPortClosed(tk *tkeyclient.TillitisKey) {
 }
 
 func reconnect(tk *tkeyclient.TillitisKey) {
-	time.Sleep(2000 * time.Millisecond)
+	var devPath string
+	var err error
+	retryDelay := 100 * time.Millisecond
+	timeout := 10 * time.Second
 
-	devPath, err := tkeyclient.DetectSerialPort(true)
+	startTime := time.Now()
+	for time.Since(startTime) < timeout {
+		// TODO: Find and use correct TKey. Port might have moved.
+		devPath, err = tkeyclient.DetectSerialPort(true)
+		if err == nil {
+			break
+		}
+		time.Sleep(retryDelay)
+	}
 	if err != nil {
 		fmt.Printf("couldn't find any TKeys\n")
 		os.Exit(1)
 	}
 
-	if err = tk.Connect(devPath, tkeyclient.WithSpeed(tkeyclient.SerialSpeed)); err != nil {
-		fmt.Printf("Could not open %s: %v\n", devPath, err)
+	// On Linux we might get an "Open /dev/ttyACM0: Permission denied"
+	// error if we try to reconnect to soon. So we try until we succeed or
+	// timeout.
+	startTime = time.Now()
+	for time.Since(startTime) < timeout {
+		// TODO: Find and use correct TKey. Port might have moved.
+		err = tk.Connect(devPath, tkeyclient.WithSpeed(tkeyclient.SerialSpeed))
+		if err == nil {
+			break
+		}
+		time.Sleep(retryDelay)
+	}
+	if err != nil {
+		fmt.Printf("Could not reconnect to %s: %v\n", devPath, err)
 		os.Exit(1)
 	}
 }
