@@ -25,6 +25,7 @@ import (
 var verifierBinary []byte
 
 var expectClose = true
+var sessionSerialNumber string // TKey serial number
 
 func verifyAppSignature(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byte, bin []byte, sig [ed25519.SignatureSize]byte) error {
 	digest := blake2s.Sum256(bin)
@@ -227,6 +228,62 @@ func waitUntilPortClosed(tk *tkeyclient.TillitisKey) {
 	_ = tk.Close()
 }
 
+func serialNumberByPath(devPath string) (string, error) {
+	ports, err := tkeyclient.GetSerialPorts()
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+
+	serialNumber := ""
+	found := false
+
+	for _, port := range ports {
+		if found {
+			return "", errors.New("found multiple TKeys with same serial number")
+		}
+
+		if port.DevPath == devPath {
+			serialNumber = port.SerialNumber
+			found = true
+		}
+
+	}
+
+	if serialNumber == "" {
+		return "", errors.New("could not find serial number")
+	}
+
+	return serialNumber, nil
+}
+
+func pathBySerialNumber(serialNumber string) (string, error) {
+	ports, err := tkeyclient.GetSerialPorts()
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+
+	devPath := ""
+	found := false
+
+	for _, port := range ports {
+		if found {
+			return "", errors.New("found multiple TKeys with same device path")
+		}
+
+		if port.SerialNumber == serialNumber {
+			devPath = port.DevPath
+			found = true
+		}
+
+	}
+
+	if devPath == "" {
+		return "", errors.New("could not find device path")
+	}
+
+	return devPath, nil
+}
+
 func reconnect(tk *tkeyclient.TillitisKey) {
 	var devPath string
 	var err error
@@ -235,15 +292,14 @@ func reconnect(tk *tkeyclient.TillitisKey) {
 
 	startTime := time.Now()
 	for time.Since(startTime) < timeout {
-		// TODO: Find and use correct TKey. Port might have moved.
-		devPath, err = tkeyclient.DetectSerialPort(true)
+		devPath, err = pathBySerialNumber(sessionSerialNumber)
 		if err == nil {
 			break
 		}
 		time.Sleep(retryDelay)
 	}
 	if err != nil {
-		fmt.Printf("couldn't find any TKeys\n")
+		fmt.Printf("couldn't find TKey\n")
 		os.Exit(1)
 	}
 
@@ -295,6 +351,14 @@ func main() {
 		devPath, err = tkeyclient.DetectSerialPort(true)
 		if err != nil {
 			fmt.Printf("couldn't find any TKeys\n")
+			os.Exit(1)
+		}
+	}
+
+	if expectClose {
+		sessionSerialNumber, err = serialNumberByPath(devPath)
+		if err != nil {
+			fmt.Printf("%v", err)
 			os.Exit(1)
 		}
 	}
