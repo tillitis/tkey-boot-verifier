@@ -125,6 +125,7 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 enum state {
 	STATE_STARTED = 0,
 	STATE_VERIFY_FLASH,
+	STATE_INIT_WAIT_FOR_COMMAND,
 	STATE_WAIT_FOR_COMMAND,
 	STATE_WAIT_FOR_APP_CHUNK,
 };
@@ -149,7 +150,7 @@ static enum state started(void)
 	}
 
 	if (next_app_data[0] == BV_NAD_WAIT_FOR_COMMAND) {
-		state = STATE_WAIT_FOR_COMMAND;
+		state = STATE_INIT_WAIT_FOR_COMMAND;
 	} else {
 		state = STATE_VERIFY_FLASH;
 	}
@@ -177,7 +178,7 @@ static enum state verify_flash(uint8_t app_digest[32],
 
 	signal_issue();
 
-	return STATE_WAIT_FOR_COMMAND;
+	return STATE_INIT_WAIT_FOR_COMMAND;
 }
 
 static void wait_for_app_chunk(struct context *ctx)
@@ -401,7 +402,7 @@ int main(void)
 	struct context ctx = {0};
 	enum state state = STATE_STARTED;
 #ifdef BOOT_INTO_WAIT_FOR_COMMAND
-	state = STATE_WAIT_FOR_COMMAND;
+	state = STATE_INIT_WAIT_FOR_COMMAND;
 #endif
 	uint8_t app_digest[32] = {0};
 	uint8_t app_signature[64] = {0};
@@ -411,10 +412,6 @@ int main(void)
 	*cpu_mon_first = *app_addr + *app_size;
 	*cpu_mon_last = TK1_RAM_BASE + TK1_RAM_SIZE;
 	*cpu_mon_ctrl = 1;
-
-#ifdef TKEY_DEBUG
-	config_endpoints(IO_CDC | IO_DEBUG);
-#endif
 
 	for (;;) {
 		switch (state) {
@@ -435,6 +432,11 @@ int main(void)
 			state = verify_flash(app_digest, app_signature, pubkey);
 			break;
 		}
+
+		case STATE_INIT_WAIT_FOR_COMMAND:
+			config_endpoints(IO_CDC);
+			state = STATE_WAIT_FOR_COMMAND;
+			break;
 
 		case STATE_WAIT_FOR_COMMAND:
 			debug_puts("verifier: STATE_WAIT_FOR_COMMAND\n");

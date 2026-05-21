@@ -231,6 +231,8 @@ int main(void)
 	*cpu_mon_last = TK1_RAM_BASE + TK1_RAM_SIZE;
 	*cpu_mon_ctrl = 1;
 
+	config_endpoints(IO_CDC);
+
 	for (;;) {
 		struct packet pkt = {0};
 
