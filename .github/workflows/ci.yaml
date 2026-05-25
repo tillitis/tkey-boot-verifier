@@ -10,8 +10,10 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  ci:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      commit_sha: ${{ github.sha }}
     container:
       image: ghcr.io/tillitis/tkey-builder:5rc2
     steps:
@@ -30,6 +32,102 @@ jobs:
 
       - name: run verifier unit tests
         run: make -C test/unit test clean
+
+      - name: Cache files for use in test job
+        uses: actions/cache@v4
+        with:
+          path: |
+            verifier/app.bin
+            testapp-probe
+            tkey-mgt
+            testapp/pubkey
+            testapp/pubkey.1
+            testapp/app_a.bin
+            testapp/app_a.bin.sig
+            testapp/app_a.bin.sig.1
+            testapp/app_b.bin
+            testapp/app_b.bin.sig
+            testapp/app_b.bin.sig.1
+          key: build-${{ github.run_number }}-${{ github.sha }}-${{ github.run_attempt }}
+
+  e2e-test:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tillitis/tkey-qemu-tk1-24.03:1
+    steps:
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git pipenv wget
+          apt-get install -y --no-install-recommends make clang lld llvm golang-1.23
+          echo "/usr/lib/go-1.23/bin" >> "$GITHUB_PATH"
+          TKEY_RUNAPP_DEB="tkey-runapp_0.0.3_linux_amd64.deb"
+          wget -nc -O "$TKEY_RUNAPP_DEB" "https://github.com/tillitis/tkey-devtools/releases/download/v0.0.3/$TKEY_RUNAPP_DEB"
+          echo "7ddab14d9aa850d2b5057e478450d0bdb100b784dd68546934b2b1b2a2fcad0d  $TKEY_RUNAPP_DEB" | sha256sum --check
+          dpkg -i "$TKEY_RUNAPP_DEB"
+          apt-get purge -y wget
+          apt-get autoremove -y
+
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: true
+
+      - name: Clone tillitis-key1 repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: tillitis-key1
+          repository: tillitis/tillitis-key1
+          ref: 2ffd46cd31d2d27d69db938535ff970805ddbe5c
+          fetch-depth: 1
+
+      - name: Retrieve files from cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            verifier/app.bin
+            testapp-probe
+            tkey-mgt
+            testapp/pubkey
+            testapp/pubkey.1
+            testapp/app_a.bin
+            testapp/app_a.bin.sig
+            testapp/app_a.bin.sig.1
+            testapp/app_b.bin
+            testapp/app_b.bin.sig
+            testapp/app_b.bin.sig.1
+          key: build-${{ github.run_number }}-${{ needs.build.outputs.commit_sha }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+
+      - name: Install development dependencies
+        working-directory: test/e2e
+        run: |
+          pipenv install --deploy --dev
+
+      - name: Lint
+        working-directory: test/e2e
+        run: |
+          pipenv run ruff check
+          pipenv run ruff format --check
+          pipenv run mypy .
+
+      - name: Remove Python development dependencies
+        working-directory: test/e2e
+        run: |
+          pipenv --rm
+
+      - name: Install test dependencies
+        working-directory: test/e2e
+        run: |
+          pipenv install --deploy
+
+      - name: Run tests
+        working-directory: test/e2e
+        run: |
+          pipenv run pytest -v --tk1-repo-path="$GITHUB_WORKSPACE/tillitis-key1"
 
   reuse-compliance-check:
     runs-on: ubuntu-latest
