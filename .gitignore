@@ -2,6 +2,7 @@
 /sign-tool
 /testapp-probe
 /tkey-mgt
+/tkey-mgt.exe
 .cache
 compile_commands.json
 dev-seed

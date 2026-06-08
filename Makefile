@@ -84,6 +84,10 @@ check:
 tkey-mgt: cmd/tkey-mgt/verifier.bin
 	go build -trimpath -buildvcs=false ./cmd/tkey-mgt
 
+.PHONY: tkey-mgt.exe
+tkey-mgt.exe: cmd/tkey-mgt/verifier.bin
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o $@ ./cmd/tkey-mgt
+
 .PHONY: sign-tool
 sign-tool:
 	go build -trimpath -buildvcs=false ./cmd/sign-tool
