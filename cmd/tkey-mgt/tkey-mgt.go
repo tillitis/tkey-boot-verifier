@@ -224,7 +224,14 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) er
 }
 
 func waitUntilPortClosed(tk *tkeyclient.TillitisKey) {
-	_, _, _ = tk.ReadFrame(rspVerify, 0x01)
+	var err error
+
+	// TODO: Add timeout
+	for err == nil {
+		tk.SetReadTimeoutNoErr(1)
+		_, _, err = tk.ReadFrame(rspVerify, 0x01)
+	}
+
 	_ = tk.Close()
 }
 
@@ -290,34 +297,49 @@ func reconnect(tk *tkeyclient.TillitisKey) {
 	retryDelay := 100 * time.Millisecond
 	timeout := 10 * time.Second
 
-	startTime := time.Now()
-	for time.Since(startTime) < timeout {
-		devPath, err = pathBySerialNumber(sessionSerialNumber)
-		if err == nil {
-			break
+	for {
+		// Find TKey by USB serial number
+		startTime := time.Now()
+		for time.Since(startTime) < timeout {
+			devPath, err = pathBySerialNumber(sessionSerialNumber)
+			if err == nil {
+				break
+			}
+			time.Sleep(retryDelay)
 		}
-		time.Sleep(retryDelay)
-	}
-	if err != nil {
-		fmt.Printf("couldn't find TKey\n")
-		os.Exit(1)
-	}
+		if err != nil {
+			fmt.Printf("couldn't find TKey\n")
+			os.Exit(1)
+		}
 
-	// On Linux we might get an "Open /dev/ttyACM0: Permission denied"
-	// error if we try to reconnect to soon. So we try until we succeed or
-	// timeout.
-	startTime = time.Now()
-	for time.Since(startTime) < timeout {
-		// TODO: Find and use correct TKey. Port might have moved.
-		err = tk.Connect(devPath, tkeyclient.WithSpeed(tkeyclient.SerialSpeed))
-		if err == nil {
+		// On Linux we might get an "Open /dev/ttyACM0: Permission denied"
+		// error if we try to reconnect to soon. So we try until we succeed or
+		// timeout.
+		startTime = time.Now()
+		for time.Since(startTime) < timeout {
+			err = tk.Connect(devPath, tkeyclient.WithSpeed(tkeyclient.SerialSpeed))
+			if err == nil {
+				break
+			}
+			time.Sleep(retryDelay)
+		}
+		if err != nil {
+			fmt.Printf("Could not reconnect to %s: %v\n", devPath, err)
+			os.Exit(1)
+		}
+
+		// On Linux it seems like we can connect to the port that we
+		// previously closed. Here we check if we can read from the
+		// open port and if not then we close the port and try to find
+		// the TKey by serial number again.
+		defer tk.SetReadTimeoutNoErr(0)
+		tk.SetReadTimeoutNoErr(1) // TODO: For faster feedback on success: Add 0 second timeout option to tkeyclient
+		_, _, err = tk.ReadFrame(rspVerify, 0x01)
+		if err.Error() == "Read timeout" { // TODO: Add timeout-specific error to tkeyclient instead of comparing strings
 			break
 		}
-		time.Sleep(retryDelay)
-	}
-	if err != nil {
-		fmt.Printf("Could not reconnect to %s: %v\n", devPath, err)
-		os.Exit(1)
+		// TODO: Fail if taking to long to reonnect
+		tk.Close()
 	}
 }
 
