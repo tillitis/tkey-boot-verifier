@@ -328,15 +328,17 @@ func reconnect(tk *tkeyclient.TillitisKey) {
 			os.Exit(1)
 		}
 
-		// On Linux it seems like we can connect to the port that we
-		// previously closed. Here we check if we can read from the
-		// open port and if not then we close the port and try to find
-		// the TKey by serial number again.
-		defer tk.SetReadTimeoutNoErr(0)
-		tk.SetReadTimeoutNoErr(1) // TODO: For faster feedback on success: Add 0 second timeout option to tkeyclient
-		_, _, err = tk.ReadFrame(rspVerify, 0x01)
-		if err.Error() == "Read timeout" { // TODO: Add timeout-specific error to tkeyclient instead of comparing strings
-			break
+		// On Linux and Windows it seems like we can connect to the
+		// port that we previously closed. Here we check if we can read
+		// from the open port and if not then we close the port and try
+		// to find the TKey by serial number again.
+		defer tk.SetReadTimeout(0)
+		err = tk.SetReadTimeout(1) // TODO: For faster feedback on success: Add 0 second timeout option to tkeyclient
+		if err == nil {
+			_, _, err = tk.ReadFrame(rspVerify, 0x01)
+			if err.Error() == "Read timeout" { // TODO: Add timeout-specific error to tkeyclient instead of comparing strings
+				break
+			}
 		}
 		// TODO: Fail if taking to long to reonnect
 		tk.Close()
