@@ -147,8 +147,16 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := setPubkey(tk, pubKey); err != nil {
-		return err
+	if expectClose {
+		waitUntilPortClosed(tk)
+		reconnect(tk)
+	} else {
+		time.Sleep(1000 * time.Millisecond)
+	}
+
+	err = setPubkey(tk, pubKey)
+	if err != nil {
+		return fmt.Errorf("couldn't set pubkey: %w", err)
 	}
 
 	digest := blake2s.Sum256(appBin)
