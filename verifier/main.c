@@ -13,11 +13,12 @@
 #include <tkey/syscall.h>
 #include <tkey/timer.h>
 #include <tkey/tk1_mem.h>
-#include <tkey/touch.h>
 
 #include "app_proto.h"
 #include "bv_nad.h"
+#include "pubkey.h"
 #include "update.h"
+#include "util.h"
 #include "verify.h"
 
 // clang-format off
@@ -30,16 +31,6 @@ static volatile uint32_t *ver		= (volatile uint32_t *) TK1_MMIO_TK1_VERSION;
 // clang-format on
 
 #define CHUNK_PAYLOAD_LEN (CMDLEN_MAXBYTES - 1)
-#define PRESENCE_TIMEOUT_S 20
-#define PRESENCE_REPEAT_DELAY_S 1
-
-#define APP_LED_COLOR (LED_RED | LED_GREEN)
-
-// Incoming packet from client
-struct packet {
-	struct frame_header hdr;      // Framing Protocol header
-	uint8_t cmd[CMDLEN_MAXBYTES]; // Application level protocol
-};
 
 // read_command takes a frame header and a command to fill in after
 // parsing. It returns 0 on success.
@@ -179,14 +170,6 @@ void reset(uint32_t type, enum bv_nad reset_dst)
 	sys_reset(&rst, 1);
 }
 
-static void signal_issue()
-{
-	for (uint8_t i = 0; i < 3; i++) {
-		led_set(i % 2 ? APP_LED_COLOR : LED_BLACK);
-		timer_wait(1);
-	}
-}
-
 static enum state verify_flash(uint8_t app_digest[32],
 			       uint8_t app_signature[64], uint8_t pubkey[32])
 {
@@ -244,20 +227,6 @@ static void wait_for_app_chunk(struct context *ctx)
 	default:
 		assert(1 == 2);
 	}
-}
-
-bool user_is_present(void)
-{
-	for (uint8_t i = 0; i < 3; i++) {
-		bool present = touch_wait(APP_LED_COLOR, PRESENCE_TIMEOUT_S);
-		if (!present) {
-			return false;
-		}
-		led_set(LED_BLACK);
-		timer_wait(PRESENCE_REPEAT_DELAY_S);
-	}
-
-	return true;
 }
 
 enum state wait_for_command(enum state state, struct context *ctx)
@@ -327,26 +296,7 @@ enum state wait_for_command(enum state state, struct context *ctx)
 		break;
 
 	case CMD_STORE_PUBKEY:
-		if (pkt.hdr.len != 128) {
-			// Bad length
-			assert(1 == 2);
-		}
-
-		if (!user_is_present()) {
-			rsp[0] = STATUS_BAD;
-			appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
-			break;
-		}
-
-		if (sys_preload_set_pubkey(&pkt.cmd[1]) != 0) {
-			rsp[0] = STATUS_BAD;
-			appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
-			assert(1 == 2);
-		}
-
-		rsp[0] = STATUS_OK;
-		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
-
+		store_pubkey(pkt);
 		break;
 
 	case CMD_SET_PUBKEY:

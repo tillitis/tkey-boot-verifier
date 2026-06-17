@@ -8,6 +8,12 @@
 #include <tkey/lib.h>
 #include <tkey/proto.h>
 
+// Incoming packet from client
+struct packet {
+	struct frame_header hdr;      // Framing Protocol header
+	uint8_t cmd[CMDLEN_MAXBYTES]; // Application level protocol
+};
+
 enum appcmd {
 	CMD_VERIFY = 0x01,
 	CMD_UPDATE_APP_INIT = 0x03,

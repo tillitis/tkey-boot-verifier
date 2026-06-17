@@ -200,7 +200,7 @@ The protocol has the following requests and responses:
 | `CMD_UPDATE_APP_INIT`  | Initialize app installation                        | 128 B    | 0x03   | 32 bit LE app size, 32 B app digest, 64 B signature | `CMD_UPDATE_APP_INIT`  |
 | `CMD_UPDATE_APP_CHUNK` | Store a chunk of an app on flash                   | 128 B    | 0x04   | 127 B app data                                      | `CMD_UPDATE_APP_CHUNK` |
 | `CMD_GET_PUBKEY`       | Get the public key installed on flash              | 1 B      | 0x05   | none                                                | `CMD_GET_PUBKEY`       |
-| `CMD_STORE_PUBKEY`     | Store public key on flash                          | 128 B    | 0x06   | 32 B public key                                     | `CMD_STORE_PUBKEY`     |
+| `CMD_STORE_PUBKEY`     | Store public key on flash                          | 128 B    | 0x06   | 32 B public key, 64 B signature                     | `CMD_STORE_PUBKEY`     |
 | `CMD_SET_PUBKEY`       | Set pubkey used by `CMD_VERIFY`                    | 128 B    | 0x07   | 32 B public key                                     | `CMD_SET_PUBKEY`       |
 | `CMD_ERASE_AREAS`      | Erase all app storage areas                        | 1 B      | 0x08   | none                                                | `CMD_ERASE_AREAS`      |
 | `CMD_RESET`            | Reset TKey                                         | 4 B      | 0xfe   | 1 B reset type, 1 B next app data                   | none                   |

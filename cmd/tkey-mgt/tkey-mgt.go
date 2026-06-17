@@ -172,7 +172,7 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 	return nil
 }
 
-func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
+func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) error {
 	err := reset(tk, fwResetTypeStartFlash0, verifierResetDstCmdMode)
 	if err != nil {
 		return err
@@ -198,7 +198,7 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
 	fmt.Printf("Confirm the pubkey update by touching the TKey touch sensor three times.\n")
 	fmt.Printf("If you want to abort then wait for the process to timeout.\n")
 
-	err = storePubkey(tk, pubkey)
+	err = storePubkey(tk, pubkey, sig)
 	if err != nil {
 		return err
 	}
@@ -372,7 +372,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := installPubkey(tk, appPub.Key); err != nil {
+		appSig, err := sigfile.ReadSig(*sigPath)
+		if err != nil {
+			fmt.Printf("couldn't read file: %v\n", err)
+			os.Exit(1)
+		}
+
+		if err := installPubkey(tk, appPub.Key, appSig.Sig); err != nil {
 			fmt.Printf("couldn't set pubkey: %v\n", err)
 			exit(1)
 		}

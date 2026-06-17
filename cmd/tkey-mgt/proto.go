@@ -160,7 +160,7 @@ func getPubkey(tk *tkeyclient.TillitisKey) ([ed25519.PublicKeySize]byte, error) 
 	return pubkey, nil
 }
 
-func storePubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
+func storePubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) error {
 	id := 0x01
 
 	tx, err := tkeyclient.NewFrameBuf(cmdStorePubkey, id)
@@ -168,7 +168,11 @@ func storePubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
 		return err
 	}
 
-	copy(tx[2:], pubkey[:])
+	offset := 2
+	copy(tx[offset:], pubkey[:])
+	offset += 32 // length of pubkey
+	copy(tx[offset:], sig[:])
+	offset += 64 // length of sig
 
 	tkeyclient.Dump("store pubkey tx", tx)
 
