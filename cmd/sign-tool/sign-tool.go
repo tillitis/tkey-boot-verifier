@@ -17,10 +17,13 @@ import (
 )
 
 func usage() {
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s [-m|-p] FILE -s seckey\n\n", os.Args[0])
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Sign message in FILE and write the result to file.sig.\n")
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Or, write pubkey generated from seckey to FILE.\n")
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Signatures and pubkeys are produced by Ed25519-signing the Blake2s digest of message.\n\n")
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s signs a BLAKE2s digest of the contents of a file or exports the public key.\n\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Sign message in FILE and write the result to FILE.sig (default):\n")
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -m FILE -s seckey [-o SIGFILE]\n\n", os.Args[0])
+
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Write pubkey (in binary form with -P) generated from seckey to FILE.\n")
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -p|P FILE -s seckey\n\n", os.Args[0])
+
 	flag.PrintDefaults()
 }
 
@@ -40,12 +43,13 @@ func main() {
 	messagePath := flag.String("m", "", "File containing message to sign")
 	sigPath := flag.String("o", "", "File to write signature to. Default: <message-file>.sig")
 	pubkeyPath := flag.String("p", "", "File to write pubkey to")
+	binPubkeyPath := flag.String("P", "", "File to write pubkey to")
 	seedPath := flag.String("s", "", "File containing private key seed in hex")
 	flag.Usage = usage
 
 	flag.Parse()
 
-	noFileArgs := *messagePath == "" && *pubkeyPath == ""
+	noFileArgs := *messagePath == "" && *pubkeyPath == "" && *binPubkeyPath == ""
 	tooManyFileArgs := *messagePath != "" && *pubkeyPath != ""
 	if noFileArgs || tooManyFileArgs {
 		flag.Usage()
@@ -99,7 +103,7 @@ func main() {
 
 		copy(sig.Sig[:], rawSig[:])
 
-		path := *messagePath+".sig"
+		path := *messagePath + ".sig"
 		if *sigPath != "" {
 			path = *sigPath
 		}
@@ -117,6 +121,14 @@ func main() {
 		copy(pub.Key[:], privateKey.Public().(ed25519.PublicKey))
 
 		err = sigfile.WriteBase64(*pubkeyPath, pub, "", true)
+		if err != nil {
+			fmt.Printf("Couldn't store pubkey: %v\n", err)
+			os.Exit(1)
+		}
+	} else if *binPubkeyPath != "" {
+		// Write only the public key part as a binary file
+
+		err = sigfile.WriteBinary(*binPubkeyPath, privateKey.Public().(ed25519.PublicKey), true)
 		if err != nil {
 			fmt.Printf("Couldn't store pubkey: %v\n", err)
 			os.Exit(1)

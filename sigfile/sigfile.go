@@ -97,7 +97,7 @@ func WriteBase64(filename string, data any, comment string, overwrite bool) erro
 	f, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
 	if err != nil {
 		if os.IsExist(err) && overwrite {
-			f, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0o666)
+			f, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o666)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -113,6 +113,37 @@ func WriteBase64(filename string, data any, comment string, overwrite bool) erro
 	}
 
 	_, err = f.Write([]byte(b64))
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
+func WriteBinary(filename string, data any, overwrite bool) error {
+	var buf bytes.Buffer
+
+	err := binary.Write(&buf, binary.BigEndian, data)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	var f *os.File
+
+	f, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
+	if err != nil {
+		if os.IsExist(err) && overwrite {
+			f, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o666)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+		} else {
+			return fmt.Errorf("%w", err)
+		}
+	}
+	defer func() { _ = f.Close() }()
+
+	_, err = f.Write([]byte(buf.Bytes()))
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
