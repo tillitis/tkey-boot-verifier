@@ -30,7 +30,8 @@ It currently supports:
   when installation has finished, then it verifies and starts the app
   in slot 1.
 
-- Installing a vendor pubkey on flash.
+- Installing a vendor pubkey on flash. This needs to be signed by the
+  existing vendor private key.
 
 - Running both verifier and a verified device app sent from client.
 
@@ -126,9 +127,13 @@ able to talk to the firmware/apps when using QEMU.
 *NB*: use `-no-expect-close` when running `tkey-mgt` against QEMU. The
 connection behaves differently compared to real hardware.
 
+#### boot
+
 Command `boot` does a verified boot of the device app specified with
 `-app`. It assumes a TKey running an app that supports the reset
 command.
+
+#### install
 
 Command `install` installs the device app specified with `-app` in
 slot 1. It assumes you are running an app that supports the reset
@@ -152,19 +157,36 @@ corresponding to this public key you can use for testing:
 9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
 ```
 
-Command `install-pubkey` installs the pubkey specified with `-pub`,
-replacing any installed pubkey. During the installion the user is
-asked to confirm by touching the TKey touch sensor three times.
-
-A pubkey file can be created with:
-
-```
-$ ./sign-tool -p pubkey -s path-to-private-key
-```
-
 NOTE WELL: For real use signing of device apps [the tkey-sign
 tool](https://github.com/tillitis/tkey-sign-cli) with BLAKE2s support
 will most likely be used instead of `sign-tool`.
+
+#### install-pubkey
+
+Command `install-pubkey` installs the pubkey specified with `-pub`,
+replacing any installed pubkey. During the installation the user is
+asked to confirm by touching the TKey touch sensor three times.
+
+A *binary* version of the public key needs to be signed by the current
+vendor private key. Typical series of commands:
+
+```
+# Create a private key, key.private. See dev-seed for format (64 bytes in hex).
+
+# Get the public key in binary form:
+./sign-tool -P key.bin -s key.private
+
+# Sign the binary key with old private key
+./sign-tool -m key.bin -s dev-seed
+
+# Get the public key in signify form:
+./sign-tool -p key.pub -s key.private
+
+# Install the new public key on TKey
+./tkey-mgt -cmd install-pubkey  -pub key.pub -sig key.bin.sig
+```
+
+Remember to use `-no-expect-close` if you're running against qemu.
 
 ## Chained Reset
 
