@@ -251,7 +251,7 @@ enum state wait_for_command(enum state state, struct context *ctx)
 			assert(1 == 2);
 		}
 
-		if (!user_is_present()) {
+		if (!user_is_present(3)) {
 			rsp[0] = STATUS_BAD;
 			appreply(pkt.hdr, CMD_ERASE_AREAS, rsp);
 			break;
@@ -357,7 +357,7 @@ enum state wait_for_command(enum state state, struct context *ctx)
 			assert(1 == 2);
 		}
 
-		if (!user_is_present()) {
+		if (!user_is_present(3)) {
 			rsp[0] = STATUS_BAD;
 			appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
 			break;

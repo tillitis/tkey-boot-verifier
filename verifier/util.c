@@ -12,9 +12,9 @@
 #define PRESENCE_TIMEOUT_S 20
 #define PRESENCE_REPEAT_DELAY_S 1
 
-bool user_is_present(void)
+bool user_is_present(int c)
 {
-	for (uint8_t i = 0; i < 3; i++) {
+	for (uint8_t i = 0; i < c; i++) {
 		bool present = touch_wait(APP_LED_COLOR, PRESENCE_TIMEOUT_S);
 		if (!present) {
 			return false;
@@ -26,7 +26,7 @@ bool user_is_present(void)
 	return true;
 }
 
-void signal_issue()
+void signal_issue(void)
 {
 	for (uint8_t i = 0; i < 3; i++) {
 		led_set(i % 2 ? APP_LED_COLOR : LED_BLACK);

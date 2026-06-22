@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Tillitis AB <tillitis.se>
 // SPDX-License-Identifier: BSD-2-Clause
 
+#include <blake2s/blake2s.h>
 #include <monocypher/monocypher-ed25519.h>
 #include <stdbool.h>
 #include <tkey/assert.h>
-#include <blake2s/blake2s.h>
 #include <tkey/debug.h>
 #include <tkey/syscall.h>
 
@@ -20,7 +20,7 @@ void store_pubkey(struct packet pkt)
 		assert(1 == 2);
 	}
 
-	if (!user_is_present()) {
+	if (!user_is_present(1)) {
 		rsp[0] = STATUS_BAD;
 		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 		return;
