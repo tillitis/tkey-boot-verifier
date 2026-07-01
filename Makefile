@@ -15,7 +15,9 @@ LIBDIR ?= $(P)/tkey-libs
 
 CC = clang
 
-INCLUDE = $(LIBDIR)/include
+INCLUDE = -I $(LIBDIR)/include -I $(LIBDIR) -I $(LIBDIR)/tkey/tk1_mem.h \
+	  -I verifier/bv_nad.h -I verifier/app_proto.h -I verifier/pubkey.h \
+	  -I verifier/update.h -I verifier/util.h -I verifier/verify.h \
 
 # If you want libcommon's debug_puts() et cetera to output something
 # on the QEMU debug port, use -DQEMU_DEBUG, or -DTKEY_DEBUG if you
@@ -24,7 +26,7 @@ CFLAGS = -target riscv32-unknown-none-elf -march=rv32iczmmul -mabi=ilp32 -mcmode
    -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf \
    -fno-builtin-putchar -nostdlib -mno-relax -flto -g \
    -Wall -Werror=implicit-function-declaration \
-   -I $(INCLUDE) -I $(LIBDIR) $(EXTRA_CFLAGS) #-DTKEY_DEBUG #-DQEMU_DEBUG
+   $(INCLUDE) $(EXTRA_CFLAGS) #-DTKEY_DEBUG #-DQEMU_DEBUG
 
 AS = clang
 ASFLAGS = -target riscv32-unknown-none-elf -march=rv32iczmmul -mabi=ilp32 -mcmodel=medany -mno-relax
@@ -59,8 +61,8 @@ compile_commands.json:
 	$(MAKE) clean
 	bear -- make verifier/app.bin
 
-cmd/tkey-mgt/verifier.bin: verifier/app.bin
-	cp verifier/app.bin cmd/tkey-mgt/verifier.bin
+cmd/tkey-mgt/verifier-cmd-mode.bin: verifier/app-cmd-mode.bin
+	cp $< $@
 
 # Turn elf into bin for device
 %.bin: %.elf
@@ -76,12 +78,17 @@ check-verifier-hash: verifier/app.bin show-verifier-hash
 	@cat verifier/app.bin.sha512
 	$(shasum) -c verifier/app.bin.sha512
 
+check-verifier-cmd-mode-hash: cmd/tkey-mgt/verifier-cmd-mode.bin
+	@echo "Expected device app digest: "
+	@cat cmd/tkey-mgt/verifier-cmd-mode.bin.sha512
+	$(shasum) -c cmd/tkey-mgt/verifier-cmd-mode.bin.sha512
+
 .PHONY: check
 check:
 	clang-tidy -header-filter=.* -checks=cert-* verifier/*.[ch] -- $(CFLAGS)
 
 .PHONY: tkey-mgt
-tkey-mgt: cmd/tkey-mgt/verifier.bin
+tkey-mgt: cmd/tkey-mgt/verifier-cmd-mode.bin
 	go build -trimpath -buildvcs=false ./cmd/tkey-mgt
 
 .PHONY: sign-tool
@@ -92,13 +99,21 @@ sign-tool:
 testapp-probe:
 	go build -trimpath -buildvcs=false ./cmd/testapp-probe
 
+VERIFIEROBJS_COMMON=verifier/verify.o verifier/app_proto.o verifier/update.o \
+	verifier/pubkey.o verifier/util.o
+
 # Simple ed25519 verifier app
-VERIFIEROBJS=verifier/main.o verifier/verify.o verifier/app_proto.o \
-    verifier/update.o verifier/pubkey.o verifier/util.o
+VERIFIEROBJS=verifier/main.o $(VERIFIEROBJS_COMMON)
+VERIFIEROBJS_CMDMODE=verifier/main-cmd-mode.o $(VERIFIEROBJS_COMMON)
+
+verifier/%-cmd-mode.o: verifier/%.c
+	$(CC) $(CFLAGS) -DBOOT_INTO_WAIT_FOR_COMMAND -c $< -o $@
 
 verifier/app.elf: $(VERIFIEROBJS)
-	$(CC) $(CFLAGS) $(VERIFIEROBJS) $(LDFLAGS) -I $(LIBDIR) -o $@
-$(VERIFIEROBJS): $(INCLUDE)/tkey/tk1_mem.h verifier/bv_nad.h verifier/app_proto.h \
+	$(CC) $(CFLAGS) $(VERIFIEROBJS) $(LDFLAGS) $(INCLUDE) -o $@
+verifier/app-cmd-mode.elf: $(VERIFIEROBJS_CMDMODE)
+	ld.lld $(VERIFIEROBJS_CMDMODE) $(LDFLAGS) -o $@
+$(VERIFIEROBJS): $(LIBDIR)/include/tkey/tk1_mem.h verifier/bv_nad.h verifier/app_proto.h \
 	verifier/pubkey.h verifier/update.h verifier/util.h verifier/verify.h
 
 TESTAPPOBJS=testapp/main.o testapp/app_proto.o
@@ -106,7 +121,7 @@ testapp/app_a.elf: $(TESTAPPOBJS) testapp/app_a.c
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -I $(LIBDIR) -o $@
 testapp/app_b.elf: $(TESTAPPOBJS) testapp/app_b.c
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -I $(LIBDIR) -o $@
-$(TESTAPPOBJS): $(INCLUDE)/tkey/tk1_mem.h verifier/bv_nad.h
+$(TESTAPPOBJS): $(LIBDIR)/include/tkey/tk1_mem.h verifier/bv_nad.h
 
 testapp/%.bin.sig: testapp/%.bin sign-tool dev-seed
 	./sign-tool -m $< -s dev-seed -o $@
@@ -127,7 +142,8 @@ dev-seed.1:
 clean:
 	rm -f sign-tool
 	rm -f tkey-mgt verifier/app.bin verifier/app.elf $(VERIFIEROBJS)
-	rm -f cmd/tkey-mgt/verifier.bin
+	rm -f verifier/app-cmd-mode.bin verifier/app-cmd-mode.elf $(VERIFIEROBJS_CMDMODE)
+	rm -f cmd/tkey-mgt/verifier-cmd-mode.bin
 	make -C tkey-libs clean
 	make -C test clean
 	rm -f $(TESTAPPOBJS)
