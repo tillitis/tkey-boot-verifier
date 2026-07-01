@@ -1,5 +1,5 @@
-github.com/ccoveille/go-safecast v1.1.0 h1:iHKNWaZm+OznO7Eh6EljXPjGfGQsSfa6/sxPlIEKO+g=
-github.com/ccoveille/go-safecast v1.1.0/go.mod h1:QqwNjxQ7DAqY0C721OIO9InMk9zCwcsO7tnRuHytad8=
+github.com/ccoveille/go-safecast/v2 v2.0.0 h1:+5eyITXAUj3wMjad6cRVJKGnC7vDS55zk0INzJagub0=
+github.com/ccoveille/go-safecast/v2 v2.0.0/go.mod h1:JIYA4CAR33blIDuE6fSwCp2sz1oOBahXnvmdBhOAABs=
 github.com/creack/goselect v0.1.2 h1:2DNy14+JPjRBgPzAd1thbQp4BSIihxcBf0IXhQXDRa0=
 github.com/creack/goselect v0.1.2/go.mod h1:a/NhLweNvqIYMuxcMOuWY516Cimucms3DglDzQP3hKY=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
@@ -8,8 +8,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PKk=
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
-github.com/tillitis/tkeyclient v1.2.0 h1:X/PjUPK061EFNmf3V4knb20wTfcIuUH13VSC/0VFaYo=
-github.com/tillitis/tkeyclient v1.2.0/go.mod h1:4TiEj0qUwaffmOODPZro6cUBaw+Gb6F5EFd6tcH7UXE=
+github.com/tillitis/tkeyclient v1.3.1 h1:IouMAtwwXewhXLmcySBmXuyFuI4WoAw8NQj+gFWlLaw=
+github.com/tillitis/tkeyclient v1.3.1/go.mod h1:7VtzyEjm08Wf+1zdrs20HsvM+WzhyztinvGG2/HY+Is=
 go.bug.st/serial v1.6.2 h1:kn9LRX3sdm+WxWKufMlIRndwGfPWsH1/9lCWXQCasq8=
 go.bug.st/serial v1.6.2/go.mod h1:UABfsluHAiaNI+La2iESysd9Vetq7VRdpxvjx7CmmOE=
 golang.org/x/crypto v0.40.0 h1:r4x+VvoG5Fm+eJcxMaY8CQM7Lb0l1lsmjGBQ6s8BfKM=
