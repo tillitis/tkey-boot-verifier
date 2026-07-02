@@ -37,7 +37,7 @@ func verifyAppSignature(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySiz
 }
 
 func eraseAll(tk *tkeyclient.TillitisKey) error {
-	err := reset(tk, fwResetTypeStartFlash0, verifierResetDstCmdMode)
+	err := tk.Reset(tkeyclient.RstTypeStartFlash0, tkeyclient.VerifierCmdMode)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func eraseAll(tk *tkeyclient.TillitisKey) error {
 }
 
 func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte) error {
-	err := reset(tk, fwResetTypeStartFlash0, verifierResetDstCmdMode)
+	err := tk.Reset(tkeyclient.RstTypeStartFlash0, tkeyclient.VerifierCmdMode)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return err
 	}
 
-	err = reset(tk, fwResetTypeStartClient, verifierResetDstCmdMode)
+	err = tk.Reset(tkeyclient.RstTypeStartClient, tkeyclient.VerifierCmdMode)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 }
 
 func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) error {
-	err := reset(tk, fwResetTypeStartFlash0, verifierResetDstCmdMode)
+	err := tk.Reset(tkeyclient.RstTypeStartFlash0, tkeyclient.VerifierCmdMode)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) er
 
 	fmt.Printf("\nPubkey updated\n")
 
-	err = reset(tk, fwResetTypeStartDefault, verifierResetDstApp1)
+	err = tk.Reset(tkeyclient.RstTypeStartDefault, tkeyclient.VerifierBootSlot1)
 	if err != nil {
 		return err
 	}
