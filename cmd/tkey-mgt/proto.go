@@ -109,26 +109,6 @@ func eraseAreas(tk *tkeyclient.TillitisKey) error {
 	return nil
 }
 
-func reset(tk *tkeyclient.TillitisKey, fwType fwResetType, verifierDst resetDst) error {
-	id := 0x01
-
-	tx, err := tkeyclient.NewFrameBuf(cmdReset, id)
-	if err != nil {
-		return err
-	}
-
-	tx[2] = uint8(fwType)
-	tx[3] = uint8(verifierDst)
-
-	tkeyclient.Dump("reset tx", tx)
-
-	if err = tk.Write(tx); err != nil {
-		return fmt.Errorf("write: %w", err)
-	}
-
-	return nil
-}
-
 func getPubkey(tk *tkeyclient.TillitisKey) ([ed25519.PublicKeySize]byte, error) {
 	id := 0x01
 
