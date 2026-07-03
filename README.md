@@ -159,7 +159,11 @@ corresponding to this public key you can use for testing:
 
 NOTE WELL: For real use signing of device apps [the tkey-sign
 tool](https://github.com/tillitis/tkey-sign-cli) with BLAKE2s support
-will most likely be used instead of `sign-tool`.
+will most likely be used instead of `sign-tool`. Typically:
+
+```
+tkey-sign -S -a b2s --uss -m fido2.bin  -p pubkey 
+```
 
 #### install-pubkey
 
@@ -194,13 +198,13 @@ this tool. Then this is a typical series of commands:
 
 ```
 # Get the public key from the TKey
-tkey-sign -G -p newkey.pub
+tkey-sign -G --uss -p newkey.pub
 
 # Convert it to binary form to be able to sign it as a message.
 ./sign-tool -P newkey.bin -p newkey.pub
 
 # Sign the binary key with old private key
-tkey-sign -S -a b2s -m newkey.bin -p oldkey.pub
+tkey-sign -S --uss -a b2s -m newkey.bin -p oldkey.pub
 
 # Install the new public key on your TKey
 ./tkey-mgt -cmd install-pubkey -pub newkey.pub -sig newkey.bin.sig
