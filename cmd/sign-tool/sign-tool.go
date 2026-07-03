@@ -23,6 +23,8 @@ func usage() {
 
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Write pubkey (in binary form with -P) generated from seckey to FILE.\n")
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -p|P FILE -s seckey\n\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Write pubkey in binary form from Signify format to FILE.\n")
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -P FILE -p key.pub\n\n", os.Args[0])
 
 	flag.PrintDefaults()
 }
@@ -42,8 +44,8 @@ type pubKey struct {
 func main() {
 	messagePath := flag.String("m", "", "File containing message to sign")
 	sigPath := flag.String("o", "", "File to write signature to. Default: <message-file>.sig")
-	pubkeyPath := flag.String("p", "", "File to write pubkey to")
-	binPubkeyPath := flag.String("P", "", "File to write pubkey to")
+	pubkeyPath := flag.String("p", "", "Public key file to read from or write to")
+	binPubkeyPath := flag.String("P", "", "File to write binary pubkey to")
 	seedPath := flag.String("s", "", "File containing private key seed in hex")
 	flag.Usage = usage
 
@@ -56,35 +58,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *seedPath == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	seedHex, err := os.ReadFile(*seedPath)
-	if err != nil {
-		fmt.Printf("couldn't read file: %v\n", err)
-		os.Exit(1)
-	}
-	if len(seedHex) < 64 {
-		fmt.Printf("Expected seed length: 64, got %d\n", len(seedHex))
-		os.Exit(1)
-	}
-
-	var seed [32]byte
-	seedLen, err := hex.Decode(seed[:], seedHex[:64])
-	if err != nil {
-		fmt.Printf("Invalid seed: %s\n", seed)
-		os.Exit(1)
-	}
-	if seedLen != 32 {
-		fmt.Printf("Expected seed length: 32, got %d\n", seedLen)
-		os.Exit(1)
-	}
-
-	privateKey := ed25519.NewKeyFromSeed(seed[:])
-
 	if *messagePath != "" {
+		privateKey, err := readPrivate(*seedPath)
+		if err != nil {
+			fmt.Printf("reading private key: %v", err)
+		}
+
 		message, err := os.ReadFile(*messagePath)
 		if err != nil {
 			fmt.Printf("couldn't read file: %v\n", err)
@@ -113,7 +92,43 @@ func main() {
 			fmt.Printf("Couldn't store signature: %v", err)
 			os.Exit(1)
 		}
+	} else if *binPubkeyPath != "" {
+		// Write only the public key part as a binary file
+
+		if *seedPath == "" {
+			// Export binary form of pubkey from Signify pubkey
+			pub, err := sigfile.ReadKey(*pubkeyPath)
+			if err != nil {
+				fmt.Printf("Couldn't read pubkey: %v\n", err)
+				os.Exit(1)
+			}
+
+			err = sigfile.WriteBinary(*binPubkeyPath, pub.Key, true)
+			if err != nil {
+				fmt.Printf("Couldn't store pubkey: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			// Export binary form derived from private key
+			privateKey, err := readPrivate(*seedPath)
+			if err != nil {
+				fmt.Printf("reading private key: %v\n", err)
+				os.Exit(1)
+			}
+
+			err = sigfile.WriteBinary(*binPubkeyPath, privateKey.Public().(ed25519.PublicKey), true)
+			if err != nil {
+				fmt.Printf("Couldn't store pubkey: %v\n", err)
+				os.Exit(1)
+			}
+		}
 	} else if *pubkeyPath != "" {
+		privateKey, err := readPrivate(*seedPath)
+		if err != nil {
+			fmt.Printf("reading private key: %v\n", err)
+			os.Exit(1)
+		}
+
 		pub := pubKey{
 			Alg:    [2]byte{'E', 'b'},
 			KeyNum: [8]byte{1, 7},
@@ -125,13 +140,26 @@ func main() {
 			fmt.Printf("Couldn't store pubkey: %v\n", err)
 			os.Exit(1)
 		}
-	} else if *binPubkeyPath != "" {
-		// Write only the public key part as a binary file
-
-		err = sigfile.WriteBinary(*binPubkeyPath, privateKey.Public().(ed25519.PublicKey), true)
-		if err != nil {
-			fmt.Printf("Couldn't store pubkey: %v\n", err)
-			os.Exit(1)
-		}
 	}
+}
+
+func readPrivate(seedPath string) (ed25519.PrivateKey, error) {
+	seedHex, err := os.ReadFile(seedPath)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	if len(seedHex) < 64 {
+		return nil, fmt.Errorf("expected hex seed length: 64, got %d", len(seedHex))
+	}
+
+	var seed [32]byte
+	seedLen, err := hex.Decode(seed[:], seedHex[:64])
+	if err != nil {
+		return nil, fmt.Errorf("invalid seed: %s", seed)
+	}
+	if seedLen != 32 {
+		return nil, fmt.Errorf("expected seed length: 32, got %d", seedLen)
+	}
+
+	return ed25519.NewKeyFromSeed(seed[:]), nil
 }

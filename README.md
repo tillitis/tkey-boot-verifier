@@ -188,6 +188,24 @@ vendor private key. Typical series of commands:
 
 Remember to use `-no-expect-close` if you're running against qemu.
 
+For *production* you should be using a TKey and
+[`tkey-sign`](https://github.com/tillitis/tkey-sign-cli) instead of
+this tool. Then this is a typical series of commands:
+
+```
+# Get the public key from the TKey
+tkey-sign -G -p newkey.pub
+
+# Convert it to binary form to be able to sign it as a message.
+./sign-tool -P newkey.bin -p newkey.pub
+
+# Sign the binary key with old private key
+tkey-sign -S -a b2s -m newkey.bin -p oldkey.pub
+
+# Install the new public key on your TKey
+./tkey-mgt -cmd install-pubkey -pub newkey.pub -sig newkey.bin.sig
+```
+
 ## Chained Reset
 
 ### Example: Verified boot from client
