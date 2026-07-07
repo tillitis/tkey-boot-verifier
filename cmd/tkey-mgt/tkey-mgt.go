@@ -25,7 +25,6 @@ import (
 var verifierBinary []byte
 
 var expectClose = true
-var sessionSerialNumber string // TKey serial number
 
 func verifyAppSignature(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byte, bin []byte, sig [ed25519.SignatureSize]byte) error {
 	digest := blake2s.Sum256(bin)
@@ -43,8 +42,11 @@ func eraseAll(tk *tkeyclient.TillitisKey) error {
 	}
 
 	if expectClose {
-		waitUntilPortClosed(tk)
-		reconnect(tk)
+		tk.WaitClosed()
+		err = tk.Reconnect()
+		if err != nil {
+			return err
+		}
 	} else {
 		time.Sleep(1000 * time.Millisecond)
 	}
@@ -70,8 +72,11 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 	}
 
 	if expectClose {
-		waitUntilPortClosed(tk)
-		reconnect(tk)
+		tk.WaitClosed()
+		err = tk.Reconnect()
+		if err != nil {
+			return err
+		}
 	} else {
 		time.Sleep(1000 * time.Millisecond)
 	}
@@ -136,8 +141,11 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 	}
 
 	if expectClose {
-		waitUntilPortClosed(tk)
-		reconnect(tk)
+		tk.WaitClosed()
+		err = tk.Reconnect()
+		if err != nil {
+			return err
+		}
 	} else {
 		time.Sleep(1000 * time.Millisecond)
 	}
@@ -148,8 +156,11 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 	}
 
 	if expectClose {
-		waitUntilPortClosed(tk)
-		reconnect(tk)
+		tk.WaitClosed()
+		err = tk.Reconnect()
+		if err != nil {
+			return err
+		}
 	} else {
 		time.Sleep(1000 * time.Millisecond)
 	}
@@ -167,8 +178,11 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 	}
 
 	if expectClose {
-		waitUntilPortClosed(tk)
-		reconnect(tk)
+		tk.WaitClosed()
+		err = tk.Reconnect()
+		if err != nil {
+			return err
+		}
 	} else {
 		time.Sleep(1000 * time.Millisecond)
 	}
@@ -188,8 +202,11 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) er
 	}
 
 	if expectClose {
-		waitUntilPortClosed(tk)
-		reconnect(tk)
+		tk.WaitClosed()
+		err = tk.Reconnect()
+		if err != nil {
+			return err
+		}
 	} else {
 		time.Sleep(1000 * time.Millisecond)
 	}
@@ -231,128 +248,6 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) er
 	return nil
 }
 
-func waitUntilPortClosed(tk *tkeyclient.TillitisKey) {
-	var err error
-
-	// TODO: Add timeout
-	for err == nil {
-		tk.SetReadTimeoutNoErr(1)
-		_, _, err = tk.ReadFrame(rspVerify, 0x01)
-	}
-
-	_ = tk.Close()
-}
-
-func serialNumberByPath(devPath string) (string, error) {
-	ports, err := tkeyclient.GetSerialPorts()
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	serialNumber := ""
-	found := false
-
-	for _, port := range ports {
-		if found {
-			return "", errors.New("found multiple TKeys with same serial number")
-		}
-
-		if port.DevPath == devPath {
-			serialNumber = port.SerialNumber
-			found = true
-		}
-
-	}
-
-	if serialNumber == "" {
-		return "", errors.New("could not find serial number")
-	}
-
-	return serialNumber, nil
-}
-
-func pathBySerialNumber(serialNumber string) (string, error) {
-	ports, err := tkeyclient.GetSerialPorts()
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	devPath := ""
-	found := false
-
-	for _, port := range ports {
-		if found {
-			return "", errors.New("found multiple TKeys with same device path")
-		}
-
-		if port.SerialNumber == serialNumber {
-			devPath = port.DevPath
-			found = true
-		}
-
-	}
-
-	if devPath == "" {
-		return "", errors.New("could not find device path")
-	}
-
-	return devPath, nil
-}
-
-func reconnect(tk *tkeyclient.TillitisKey) {
-	var devPath string
-	var err error
-	retryDelay := 100 * time.Millisecond
-	timeout := 10 * time.Second
-
-	for {
-		// Find TKey by USB serial number
-		startTime := time.Now()
-		for time.Since(startTime) < timeout {
-			devPath, err = pathBySerialNumber(sessionSerialNumber)
-			if err == nil {
-				break
-			}
-			time.Sleep(retryDelay)
-		}
-		if err != nil {
-			fmt.Printf("couldn't find TKey\n")
-			os.Exit(1)
-		}
-
-		// On Linux we might get an "Open /dev/ttyACM0: Permission denied"
-		// error if we try to reconnect to soon. So we try until we succeed or
-		// timeout.
-		startTime = time.Now()
-		for time.Since(startTime) < timeout {
-			err = tk.Connect(devPath, tkeyclient.WithSpeed(tkeyclient.SerialSpeed))
-			if err == nil {
-				break
-			}
-			time.Sleep(retryDelay)
-		}
-		if err != nil {
-			fmt.Printf("Could not reconnect to %s: %v\n", devPath, err)
-			os.Exit(1)
-		}
-
-		// On Linux and Windows it seems like we can connect to the
-		// port that we previously closed. Here we check if we can read
-		// from the open port and if not then we close the port and try
-		// to find the TKey by serial number again.
-		defer tk.SetReadTimeout(0)
-		err = tk.SetReadTimeout(1) // TODO: For faster feedback on success: Add 0 second timeout option to tkeyclient
-		if err == nil {
-			_, _, err = tk.ReadFrame(rspVerify, 0x01)
-			if err.Error() == "Read timeout" { // TODO: Add timeout-specific error to tkeyclient instead of comparing strings
-				break
-			}
-		}
-		// TODO: Fail if taking to long to reonnect
-		tk.Close()
-	}
-}
-
 func usage() {
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path -sig path -pub path-to-pubkey\n", os.Args[0])
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd install -app path -sig path\n", os.Args[0])
@@ -383,14 +278,6 @@ func main() {
 		devPath, err = tkeyclient.DetectSerialPort(true)
 		if err != nil {
 			fmt.Printf("couldn't find any TKeys\n")
-			os.Exit(1)
-		}
-	}
-
-	if expectClose {
-		sessionSerialNumber, err = serialNumberByPath(devPath)
-		if err != nil {
-			fmt.Printf("%v", err)
 			os.Exit(1)
 		}
 	}
