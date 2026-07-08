@@ -11,7 +11,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	"tkey-mgt/sigfile"
 
@@ -23,8 +22,6 @@ import (
 //
 //go:embed verifier.bin
 var verifierBinary []byte
-
-var expectClose = true
 
 func verifyAppSignature(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byte, bin []byte, sig [ed25519.SignatureSize]byte) error {
 	digest := blake2s.Sum256(bin)
@@ -41,14 +38,10 @@ func eraseAll(tk *tkeyclient.TillitisKey) error {
 		return err
 	}
 
-	if expectClose {
-		tk.WaitClosed()
-		err = tk.Reconnect()
-		if err != nil {
-			return err
-		}
-	} else {
-		time.Sleep(1000 * time.Millisecond)
+	tk.WaitClosed()
+	err = tk.Reconnect()
+	if err != nil {
+		return err
 	}
 
 	fmt.Printf("Your TKey will begin to blink yellow.\n")
@@ -71,14 +64,10 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 		return err
 	}
 
-	if expectClose {
-		tk.WaitClosed()
-		err = tk.Reconnect()
-		if err != nil {
-			return err
-		}
-	} else {
-		time.Sleep(1000 * time.Millisecond)
+	tk.WaitClosed()
+	err = tk.Reconnect()
+	if err != nil {
+		return err
 	}
 
 	pubkey, err := getPubkey(tk)
@@ -140,14 +129,10 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return err
 	}
 
-	if expectClose {
-		tk.WaitClosed()
-		err = tk.Reconnect()
-		if err != nil {
-			return err
-		}
-	} else {
-		time.Sleep(1000 * time.Millisecond)
+	tk.WaitClosed()
+	err = tk.Reconnect()
+	if err != nil {
+		return err
 	}
 
 	err = tk.LoadApp(verifierBinary, secret)
@@ -155,14 +140,10 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return fmt.Errorf("%w", err)
 	}
 
-	if expectClose {
-		tk.WaitClosed()
-		err = tk.Reconnect()
-		if err != nil {
-			return err
-		}
-	} else {
-		time.Sleep(1000 * time.Millisecond)
+	tk.WaitClosed()
+	err = tk.Reconnect()
+	if err != nil {
+		return err
 	}
 
 	err = setPubkey(tk, pubKey)
@@ -177,14 +158,10 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return err
 	}
 
-	if expectClose {
-		tk.WaitClosed()
-		err = tk.Reconnect()
-		if err != nil {
-			return err
-		}
-	} else {
-		time.Sleep(1000 * time.Millisecond)
+	tk.WaitClosed()
+	err = tk.Reconnect()
+	if err != nil {
+		return err
 	}
 
 	err = tk.LoadApp(appBin, []byte{})
@@ -201,14 +178,10 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) er
 		return err
 	}
 
-	if expectClose {
-		tk.WaitClosed()
-		err = tk.Reconnect()
-		if err != nil {
-			return err
-		}
-	} else {
-		time.Sleep(1000 * time.Millisecond)
+	tk.WaitClosed()
+	err = tk.Reconnect()
+	if err != nil {
+		return err
 	}
 
 	currentPubkey, err := getPubkey(tk)
@@ -269,8 +242,6 @@ func main() {
 
 	flag.Parse()
 
-	expectClose = !*noExpectClose
-
 	tkeyclient.SilenceLogging()
 
 	devPath := *port
@@ -282,8 +253,17 @@ func main() {
 		}
 	}
 
+	tkOpts := []func(*tkeyclient.TillitisKey){
+		tkeyclient.WithSpeed(tkeyclient.SerialSpeed),
+	}
+	if *noExpectClose {
+		tkOpts = append(tkOpts,
+			tkeyclient.NotUSBDevice(),
+			tkeyclient.NoRemoteClose())
+	}
+
 	tk := tkeyclient.New()
-	if err = tk.Connect(devPath, tkeyclient.WithSpeed(tkeyclient.SerialSpeed)); err != nil {
+	if err = tk.Connect(devPath, tkOpts...); err != nil {
 		fmt.Printf("Could not open %s: %v\n", devPath, err)
 		os.Exit(1)
 	}

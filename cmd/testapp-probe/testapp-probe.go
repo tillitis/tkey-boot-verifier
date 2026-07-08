@@ -24,6 +24,7 @@ func main() {
 	port := flag.String("port", "", "TKey serial port")
 	fwResType := flag.Int("fw-reset-type", 0, "Firmware reset type. Integer")
 	verifierResetDst := flag.Int("verifier-reset-dst", 0, "Verifier reset dst. Integer")
+	noExpectClose := flag.Bool("no-expect-close", false, "Do not expect serial port to disappear when TKey resets")
 
 	flag.Usage = usage
 
@@ -43,9 +44,18 @@ func main() {
 		}
 	}
 
+	tkOpts := []func(*tkeyclient.TillitisKey){
+		tkeyclient.WithSpeed(tkeyclient.SerialSpeed),
+	}
+	if *noExpectClose {
+		tkOpts = append(tkOpts,
+			tkeyclient.NotUSBDevice(),
+			tkeyclient.NoRemoteClose())
+	}
+
 	tk := tkeyclient.New()
 
-	if err = tk.Connect(devPath, tkeyclient.WithSpeed(tkeyclient.SerialSpeed)); err != nil {
+	if err = tk.Connect(devPath, tkOpts...); err != nil {
 		fmt.Printf("Could not open %s: %v\n", devPath, err)
 		os.Exit(1)
 	}
