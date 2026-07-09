@@ -123,6 +123,7 @@ able to talk to the firmware/apps when using QEMU.
 - `tkey-mgt [-no-expect-close] -cmd boot -app path -sig path-to-signature -pub path-to-pubkey`
 - `tkey-mgt [-no-expect-close] -cmd install -app path -sig path-to-signature`
 - `tkey-mgt [-no-expect-close] -cmd install-pubkey -pub path`
+- `tkey-mgt [-no-expect-close] -cmd erase-areas`
 
 *NB*: use `-no-expect-close` when running `tkey-mgt` against QEMU. The
 connection behaves differently compared to real hardware.
@@ -169,7 +170,7 @@ tkey-sign -S -a b2s --uss -m fido2.bin  -p pubkey
 
 Command `install-pubkey` installs the pubkey specified with `-pub`,
 replacing any installed pubkey. During the installation the user is
-asked to confirm by touching the TKey touch sensor three times.
+asked to confirm by touching the TKey touch sensor.
 
 A *binary* version of the public key needs to be signed by the current
 vendor private key. Typical series of commands:
@@ -209,6 +210,13 @@ tkey-sign -S --uss -a b2s -m newkey.bin -p oldkey.pub
 # Install the new public key on your TKey
 ./tkey-mgt -cmd install-pubkey -pub newkey.pub -sig newkey.bin.sig
 ```
+
+#### erase-areas
+
+The `erase-areas` command erases all device app storage areas. The
+user is asked to confirm by touching the TKey touch sensor three
+times.
+
 
 ## Chained Reset
 
