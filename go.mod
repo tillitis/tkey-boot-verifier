@@ -13,3 +13,5 @@ require (
 	go.bug.st/serial v1.6.2 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 )
+
+replace github.com/tillitis/tkeyclient => ../tkeyclient

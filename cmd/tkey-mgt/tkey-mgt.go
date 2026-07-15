@@ -245,13 +245,6 @@ func main() {
 	tkeyclient.SilenceLogging()
 
 	devPath := *port
-	if devPath == "" {
-		devPath, err = tkeyclient.DetectSerialPort(true)
-		if err != nil {
-			fmt.Printf("couldn't find any TKeys\n")
-			os.Exit(1)
-		}
-	}
 
 	tkOpts := []func(*tkeyclient.TillitisKey){
 		tkeyclient.WithSpeed(tkeyclient.SerialSpeed),
@@ -272,6 +265,11 @@ func main() {
 	exit := func(code int) {
 		_ = tk.Close()
 		os.Exit(code)
+	}
+
+	if !*noExpectClose && !tk.CanRemoteClose {
+		fmt.Printf("unsupported TKey model\n")
+		os.Exit(1)
 	}
 
 	switch *cmd {
