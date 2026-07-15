@@ -32,14 +32,27 @@ func verifyAppSignature(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySiz
 	return nil
 }
 
+func reconnect(tk *tkeyclient.TillitisKey) error {
+	err := tk.WaitClosed()
+	if err != nil {
+		return fmt.Errorf("expected port close: %w", err)
+	}
+
+	err = tk.Reconnect()
+	if err != nil {
+		return fmt.Errorf("couldn't reconnect: %w", err)
+	}
+
+	return nil
+}
+
 func eraseAll(tk *tkeyclient.TillitisKey) error {
 	err := tk.Reset(tkeyclient.RstTypeStartFlash0, tkeyclient.VerifierCmdMode)
 	if err != nil {
 		return err
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -64,8 +77,7 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 		return err
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -129,8 +141,7 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return err
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -140,8 +151,7 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return fmt.Errorf("%w", err)
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -158,8 +168,7 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return err
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -178,8 +187,7 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) er
 		return err
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -245,13 +253,6 @@ func main() {
 	tkeyclient.SilenceLogging()
 
 	devPath := *port
-	if devPath == "" {
-		devPath, err = tkeyclient.DetectSerialPort(true)
-		if err != nil {
-			fmt.Printf("couldn't find any TKeys\n")
-			os.Exit(1)
-		}
-	}
 
 	tkOpts := []func(*tkeyclient.TillitisKey){
 		tkeyclient.WithSpeed(tkeyclient.SerialSpeed),
@@ -272,6 +273,11 @@ func main() {
 	exit := func(code int) {
 		_ = tk.Close()
 		os.Exit(code)
+	}
+
+	if !*noExpectClose && !tk.CanRemoteClose {
+		fmt.Printf("unsupported TKey model\n")
+		os.Exit(1)
 	}
 
 	switch *cmd {
