@@ -1,4 +1,4 @@
-/cmd/tkey-mgt/verifier.bin
+/cmd/tkey-mgt/verifier-cmd-mode.bin
 /sign-tool
 /testapp-probe
 /tkey-mgt
@@ -20,4 +20,6 @@ testapp/pubkey.1
 verifier/*.o
 verifier/app.bin
 verifier/app.elf
+verifier/app-cmd-mode.bin
+verifier/app-cmd-mode.elf
 test/lib/cmocka/src/cmocka.o

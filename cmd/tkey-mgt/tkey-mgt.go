@@ -21,7 +21,7 @@ import (
 
 // nolint:typecheck // Avoid lint error when the embedding file is missing.
 //
-//go:embed verifier.bin
+//go:embed verifier-cmd-mode.bin
 var verifierBinary []byte
 
 var expectClose = true
@@ -129,9 +129,13 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return err
 	}
 
-	err = reset(tk, fwResetTypeStartClient, verifierResetDstCmdMode)
-	if err != nil {
-		return err
+	// Try to enter firmware command mode if we aren't there already.
+	_, err = tk.GetNameVersion()
+	if errors.Is(err, tkeyclient.ErrResponseStatusNotOK) {
+		err = reset(tk, fwResetTypeStartClient, verifierResetDstCmdMode)
+		if err != nil {
+			return err
+		}
 	}
 
 	if expectClose {
