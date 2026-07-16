@@ -11,7 +11,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	"tkey-mgt/sigfile"
 
@@ -24,7 +23,7 @@ import (
 //go:embed verifier.bin
 var verifierBinary []byte
 
-var expectClose bool
+// var expectClose bool
 
 func verifyAppSignature(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byte, bin []byte, sig [ed25519.SignatureSize]byte) error {
 	digest := blake2s.Sum256(bin)
@@ -36,18 +35,14 @@ func verifyAppSignature(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySiz
 }
 
 func reconnect(tk *tkeyclient.TillitisKey) error {
-	if expectClose {
-		err := tk.WaitClosed()
-		if err != nil {
-			return fmt.Errorf("expected port close: %w", err)
-		}
+	err := tk.WaitClosed()
+	if err != nil {
+		return fmt.Errorf("expected port close: %w", err)
+	}
 
-		err = tk.Reconnect()
-		if err != nil {
-			return fmt.Errorf("couldn't reconnect: %w", err)
-		}
-	} else {
-		time.Sleep(time.Second)
+	err = tk.Reconnect()
+	if err != nil {
+		return fmt.Errorf("couldn't reconnect: %w", err)
 	}
 
 	return nil
@@ -260,7 +255,6 @@ func main() {
 	tkeyclient.SilenceLogging()
 
 	devPath := *port
-	expectClose = !*noExpectClose
 
 	tkOpts := []func(*tkeyclient.TillitisKey){
 		tkeyclient.WithSpeed(tkeyclient.SerialSpeed),
