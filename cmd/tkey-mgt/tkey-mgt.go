@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"tkey-mgt/sigfile"
 
@@ -23,10 +24,30 @@ import (
 //go:embed verifier.bin
 var verifierBinary []byte
 
+var expectClose bool
+
 func verifyAppSignature(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byte, bin []byte, sig [ed25519.SignatureSize]byte) error {
 	digest := blake2s.Sum256(bin)
 	if !ed25519.Verify(pubKey[:], digest[:], sig[:]) {
 		return fmt.Errorf("app signature invalid")
+	}
+
+	return nil
+}
+
+func reconnect(tk *tkeyclient.TillitisKey) error {
+	if expectClose {
+		err := tk.WaitClosed()
+		if err != nil {
+			return fmt.Errorf("expected port close: %w", err)
+		}
+
+		err = tk.Reconnect()
+		if err != nil {
+			return fmt.Errorf("couldn't reconnect: %w", err)
+		}
+	} else {
+		time.Sleep(time.Second)
 	}
 
 	return nil
@@ -38,8 +59,7 @@ func eraseAll(tk *tkeyclient.TillitisKey) error {
 		return err
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -64,8 +84,7 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 		return err
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -129,8 +148,7 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return err
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -140,8 +158,7 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return fmt.Errorf("%w", err)
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -158,8 +175,7 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return err
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -178,8 +194,7 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) er
 		return err
 	}
 
-	tk.WaitClosed()
-	err = tk.Reconnect()
+	err = reconnect(tk)
 	if err != nil {
 		return err
 	}
@@ -245,6 +260,7 @@ func main() {
 	tkeyclient.SilenceLogging()
 
 	devPath := *port
+	expectClose = !*noExpectClose
 
 	tkOpts := []func(*tkeyclient.TillitisKey){
 		tkeyclient.WithSpeed(tkeyclient.SerialSpeed),
