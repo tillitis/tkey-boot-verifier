@@ -12,7 +12,7 @@
 #include <string.h>
 #include <tkey/syscall.h>
 
-#include "../../verifier/update.h"
+#include "../../../verifier/update.h"
 #include "../platform/fakesys.h"
 #include "../utils/tcmocka_util.h"
 

@@ -1,3 +1,4 @@
+*.o
 tests/test_update
 tests/test_update_order
 tests/test_verify

@@ -20,4 +20,3 @@ testapp/pubkey.1
 verifier/*.o
 verifier/app.bin
 verifier/app.elf
-test/lib/cmocka/src/cmocka.o

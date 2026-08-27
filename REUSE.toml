@@ -20,24 +20,27 @@ path = [
      "go.mod",
      "go.sum",
      "verifier/app.bin.sha512",
-     "test/Makefile",
-     "test/.gitignore",
+     "test/e2e/Pipfile",
+     "test/e2e/Pipfile.lock",
+     "test/e2e/pyproject.toml",
+     "test/unit/Makefile",
+     "test/unit/.gitignore",
 ]
 SPDX-FileCopyrightText = "2025 Tillitis AB <tillitis.se>"
 SPDX-License-Identifier = "BSD-2-Clause"
 
 [[annotations]]
-path = "test/lib/cmocka/include/cmocka_private.h"
+path = "test/unit/lib/cmocka/include/cmocka_private.h"
 SPDX-FileCopyrightText = "2008 Google Inc."
 SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
-path = "test/lib/cmocka/include/cmocka_pbc.h"
+path = "test/unit/lib/cmocka/include/cmocka_pbc.h"
 SPDX-FileCopyrightText = "2014 Luis Pabon, Jr."
 SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
-path = "test/lib/cmocka/src/cmocka.c"
+path = "test/unit/lib/cmocka/src/cmocka.c"
 SPDX-FileCopyrightText = [
     "2008 Google Inc.",
     "2014-2018 Andreas Schneider <asn@cryptomilk.org>",
@@ -46,7 +49,7 @@ SPDX-FileCopyrightText = [
 SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
-path = "test/lib/cmocka/include/cmocka.h"
+path = "test/unit/lib/cmocka/include/cmocka.h"
 SPDX-FileCopyrightText = [
     "2008 Google Inc.",
     "2014-2022 Andreas Schneider <asn@cryptomilk.org>",
@@ -54,6 +57,6 @@ SPDX-FileCopyrightText = [
 SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
-path = "test/lib/cmocka/**"
+path = "test/unit/lib/cmocka/**"
 SPDX-FileCopyrightText = "NONE"
 SPDX-License-Identifier = "Apache-2.0"
