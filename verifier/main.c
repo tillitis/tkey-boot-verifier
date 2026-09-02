@@ -246,6 +246,11 @@ enum state wait_for_command(enum state state, struct context *ctx)
 
 	// Smallest possible payload length (cmd) is 1 byte.
 	switch (pkt.cmd[0]) {
+	case CMD_FW_PROBE:
+		// Firmware probe. Allowed in this protocol state.
+		// State unchanged.
+		break;
+
 	case CMD_ERASE_AREAS:
 		if (pkt.hdr.len != 1) {
 			// Bad length
