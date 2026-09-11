@@ -213,10 +213,11 @@ tkey-sign -S --uss -a b2s -m newkey.bin -p oldkey.pub
 
 #### erase-areas
 
-The `erase-areas` command erases all device app storage areas. The
-user is asked to confirm by touching the TKey touch sensor three
-times.
+The `erase-areas` command erases device app storage areas 1-3,
+excluding area 0. The user is asked to confirm in the terminal, and
+then by touching the TKey touch sensor three times.
 
+Area 0 can be included, see `CMD_ERASE_AREAS` for details.
 
 ## Chained Reset
 
@@ -284,8 +285,15 @@ firmware.
 
 #### `CMD_ERASE_AREAS`
 
-Erases and deallocates all app data storage areas. Requires user
+Erases and deallocates app data storage areas 1-3. Requires user
 presence confirmation (touch) three times.
+
+Opt in to include area0 during erase. Define ERASE_INCLUDE_AREA0
+during build, such as
+
+´´´
+make EXTRA_CFLAGS=-DERASE_INCLUDE_AREA0
+´´´
 
 Response:
 

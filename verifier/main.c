@@ -33,6 +33,15 @@ static volatile uint32_t *ver		= (volatile uint32_t *) TK1_MMIO_TK1_VERSION;
 
 #define CHUNK_PAYLOAD_LEN (CMDLEN_MAXBYTES - 1)
 
+// Opt in for advanced users that want to enable erasure of data area0
+#if defined(ERASE_INCLUDE_AREA0)
+#define ERASE_AREA_START 0
+#else
+#define ERASE_AREA_START 1
+#endif
+
+#define ERASE_AREA_STOP 4
+
 // read_command takes a frame header and a command to fill in after
 // parsing. It returns 0 on success.
 static int read_command(struct frame_header *hdr, uint8_t *cmd)
@@ -134,7 +143,7 @@ static enum state started(void)
 	enum state state = STATE_STARTED;
 	uint8_t next_app_data[RESET_DATA_SIZE] = {0};
 
-	if (sys_reset_data(next_app_data) != 0) {
+	if (sys_get_reset_data(next_app_data) != 0) {
 		assert(1 == 2);
 	}
 
@@ -249,12 +258,14 @@ enum state wait_for_command(enum state state, struct context *ctx)
 			break;
 		}
 
-		if (sys_erase_areas() != 0) {
-			debug_puts("verifier:"
-				   " sys_erase_areas failed\n");
-			rsp[0] = FRAME_STATUS_NOK;
-			appreply(pkt.hdr, CMD_ERASE_AREAS, rsp);
-			assert(1 == 2);
+		for (uint8_t i = ERASE_AREA_START; i < ERASE_AREA_STOP; i++) {
+			if (sys_erase_area(i) != 0) {
+				debug_puts("verifier:"
+					   " sys_erase_areas failed\n");
+				rsp[0] = FRAME_STATUS_NOK;
+				appreply(pkt.hdr, CMD_ERASE_AREAS, rsp);
+				assert(1 == 2);
+			}
 		}
 
 		rsp[0] = FRAME_STATUS_OK;
