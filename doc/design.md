@@ -84,7 +84,9 @@ Quick reminder of how the TKey (Castor version) works:
      and optionally the USS. This is the default.
 
      ```
-     CDI = BLAKE2s(UDS, domain, blake2s(entire device app in RAM)[, USS])
+     CDI = BLAKE2s(
+         key = UDS,
+         data = domain || blake2s(entire device app in RAM)[|| USS])
      ```
 
   2. If the previous app asks for it (indicated by setting the
@@ -92,7 +94,15 @@ Quick reminder of how the TKey (Castor version) works:
      this instead:
 
      ```
-     CDI = BLAKE2s(UDS, domain, BLAKE2s(app[n-1]'s CDI, seed)¹[, USS])
+     CDI = blake2s(
+         key = UDS,
+         data = domain || measured_id¹ [|| USS])
+     ```
+
+     ```
+     measured_id¹ = blake2s(
+          key = app[n-1]'s CDI,
+          data = seed)
      ```
 
      ¹ This part is actually computed by the firmware before actually
@@ -147,7 +157,7 @@ documentation](https://github.com/tillitis/tillitis-key1/tree/main/hw/applicatio
 ```mermaid
 sequenceDiagram
     Firmware->>Firmware: LoadFirstStageApp
-    Firmware->>Firmware: CDI = blake2s(UDS, domain0/1, blake2s(First Stage App), USS)
+    Firmware->>Firmware: CDI = blake2s(k = UDS, d = domain0/1 || blake2s(First Stage App) || USS)
     create participant First Stage App
     Firmware->>First Stage App: CDI
     First Stage App->>First Stage App: Fetch(vendor_pubkey, vendor_signature, app_digest)
@@ -155,11 +165,11 @@ sequenceDiagram
     First Stage App->>First Stage App: seed = blakes2(vendor_pubkey)
     destroy First Stage App
     First Stage App->>Firmware: seed, second_stage_app_digest
-    Firmware->>Firmware: measured_id = blake2s(CDI, seed)
+    Firmware->>Firmware: measured_id = blake2s(K = CDI, d = seed)
     Firmware->>Firmware: Reset
     Firmware->>Firmware: Load Second Stage app
     Firmware->>Firmware: Verify(blake2s(loaded app) == second_stage_app_digest)
-    Firmware->>Firmware: CDI = blake2s(UDS, domain2/3, measured_id, USS)
+    Firmware->>Firmware: CDI = blake2s(k = UDS, d = domain2/3 || measured_id || USS)
     create participant Second Stage App
     Firmware->>Second Stage App: CDI
 ```
@@ -184,7 +194,9 @@ When the boot verifier asks for a reset, the firmware measures this
 seed, first with app[n]'s CDI:
 
 ```
-measured_id = blake2s(CDI, seed)
+measured_id = blake2s(
+    key = CDI,
+    data = seed)
 ```
 
 Then does a hardware reset, which starts firmware again from the
@@ -193,7 +205,9 @@ CDI computation, with the domain byte set to 10 or 11 depending if the
 USS is used:
 
 ```
-CDI = blake2s(UDS, domain2/3, measured_id, USS)
+CDI = blake2s(
+    key = UDS,
+    data = domain2/3 || measured_id || USS)
 ```
 
 In order to satisfy the requirement for different CDI for different
