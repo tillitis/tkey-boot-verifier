@@ -3,6 +3,7 @@
 
 #include <monocypher/monocypher-ed25519.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 #include <tkey/assert.h>
 #include <tkey/debug.h>
@@ -146,17 +147,14 @@ static enum state started(void)
 	return state;
 }
 
-void reset(uint32_t type, enum bv_nad reset_dst)
+void reset(uint32_t type, uint8_t next_app_data[126])
 {
-	if (reset_dst >= BV_NAD_COUNT) {
-		assert(1 == 2);
-	}
 
 	struct reset rst = {0};
 	rst.type = type;
-	rst.next_app_data[0] = reset_dst;
+	memcpy(rst.next_app_data, next_app_data, 126);
 
-	sys_reset(&rst, 1);
+	sys_reset(&rst, 126);
 }
 
 static enum state verify_flash(uint8_t app_digest[32],
@@ -333,11 +331,12 @@ enum state wait_for_command(enum state state, struct context *ctx)
 	}
 
 	case CMD_RESET:
-		if (pkt.hdr.len != 4) {
+		if (pkt.hdr.len != 128) {
 			assert(1 == 2);
 		}
 
-		reset(pkt.cmd[1], pkt.cmd[2]);
+		uint8_t *p_next_app_data = pkt.cmd + 2;
+		reset(pkt.cmd[1], p_next_app_data);
 
 		assert(1 == 2);
 

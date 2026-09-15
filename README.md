@@ -255,7 +255,7 @@ The protocol has the following requests and responses:
 | `CMD_STORE_PUBKEY`     | Store public key on flash                          | 128 B    | 0x06   | 32 B public key, 64 B signature                     | `CMD_STORE_PUBKEY`     |
 | `CMD_SET_PUBKEY`       | Set pubkey used by `CMD_VERIFY`                    | 128 B    | 0x07   | 32 B public key                                     | `CMD_SET_PUBKEY`       |
 | `CMD_ERASE_AREAS`      | Erase all app storage areas                        | 1 B      | 0x08   | none                                                | `CMD_ERASE_AREAS`      |
-| `CMD_RESET`            | Reset TKey                                         | 4 B      | 0xfe   | 1 B reset type, 1 B next app data                   | none                   |
+| `CMD_RESET`            | Reset TKey                                         | 128 B    | 0xfe   | 1 B reset type, 126 B next app data                 | none                   |
 
 | *response*             | *length* | *code* | *data*                       |
 |------------------------|----------|--------|------------------------------|
