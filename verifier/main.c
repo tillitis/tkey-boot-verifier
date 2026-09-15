@@ -44,7 +44,7 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 	memset(cmd, 0, CMDLEN_MAXBYTES);
 
 	if (*ver >= TKEY_VERSION_CASTOR) {
-		if (readselect(IO_CDC, &endpoint, &available) < 0) {
+		if (readselect(IO_CDC, false, &endpoint, &available) < 0) {
 			debug_puts("verifier: readselect errror");
 			return -1;
 		}
@@ -53,19 +53,18 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 			return -1;
 		}
 	} else {
-		if (uart_read(&in, 1, 1) < 0) {
-			return -1;
-		}
+		assert(1 == 2); // Earlier versions not supported.
 	}
 
-	if (parseframe(in, hdr) == -1) {
+	if (frame_parse_hdr(in, hdr) == -1) {
 		debug_puts("verifier: Couldn't parse header\n");
 		return -1;
 	}
 
 	if (*ver >= TKEY_VERSION_CASTOR) {
 		for (uint8_t n = 0; n < hdr->len;) {
-			if (readselect(IO_CDC, &endpoint, &available) < 0) {
+			if (readselect(IO_CDC, false, &endpoint, &available) <
+			    0) {
 				debug_puts("verifier: readselect errror");
 				return -1;
 			}
@@ -91,16 +90,14 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 			n += nbytes;
 		}
 	} else {
-		if (uart_read(cmd, CMDLEN_MAXBYTES, hdr->len) < 0) {
-			return -1;
-		}
+		assert(1 == 2); // Earlier versions not supported.
 	}
 
 	// Well-behaved apps are supposed to check for a client
 	// attempting to probe for firmware. In that case destination
 	// is firmware and we just reply NOK, discarding all bytes
 	// already read.
-	if (hdr->endpoint == DST_FW) {
+	if (hdr->f_domain == DST_FW) {
 		appreply_nok(*hdr);
 		debug_puts("verifier: Responded NOK to message meant for fw\n");
 		cmd[0] = CMD_FW_PROBE;
@@ -110,10 +107,10 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 
 	// Is it for us? If not, return error after having discarded
 	// all bytes.
-	if (hdr->endpoint != DST_SW) {
+	if (hdr->f_domain != DST_SW) {
 		debug_puts(
-		    "verifier: Message not meant for app. endpoint was 0x");
-		debug_puthex(hdr->endpoint);
+		    "verifier: Message not meant for app. f_domain was 0x");
+		debug_puthex(hdr->f_domain);
 		debug_lf();
 
 		return -1;
@@ -202,17 +199,17 @@ static void wait_for_app_chunk(struct context *ctx)
 
 		if (update_write(&ctx->update_ctx, &pkt.cmd[1],
 				 CHUNK_PAYLOAD_LEN) != 0) {
-			rsp[0] = STATUS_BAD;
+			rsp[0] = FRAME_STATUS_NOK;
 			appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
 			assert(1 == 2);
 		}
 
-		rsp[0] = STATUS_OK;
+		rsp[0] = FRAME_STATUS_OK;
 		appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
 
 		if (update_app_is_written(&ctx->update_ctx)) {
 			if (update_finalize(&ctx->update_ctx) != 0) {
-				rsp[0] = STATUS_BAD;
+				rsp[0] = FRAME_STATUS_NOK;
 				appreply(pkt.hdr, CMD_UPDATE_APP_CHUNK, rsp);
 				assert(1 == 2);
 			}
@@ -258,7 +255,7 @@ enum state wait_for_command(enum state state, struct context *ctx)
 		}
 
 		if (!user_is_present(3)) {
-			rsp[0] = STATUS_BAD;
+			rsp[0] = FRAME_STATUS_NOK;
 			appreply(pkt.hdr, CMD_ERASE_AREAS, rsp);
 			break;
 		}
@@ -266,12 +263,12 @@ enum state wait_for_command(enum state state, struct context *ctx)
 		if (sys_erase_areas() != 0) {
 			debug_puts("verifier:"
 				   " sys_erase_areas failed\n");
-			rsp[0] = STATUS_BAD;
+			rsp[0] = FRAME_STATUS_NOK;
 			appreply(pkt.hdr, CMD_ERASE_AREAS, rsp);
 			assert(1 == 2);
 		}
 
-		rsp[0] = STATUS_OK;
+		rsp[0] = FRAME_STATUS_OK;
 		appreply(pkt.hdr, CMD_ERASE_AREAS, rsp);
 
 		break;
@@ -290,12 +287,12 @@ enum state wait_for_command(enum state state, struct context *ctx)
 					     pubkey) != 0) {
 			debug_puts("verifier:"
 				   " sys_preload_get_metadata failed\n");
-			rsp[0] = STATUS_BAD;
+			rsp[0] = FRAME_STATUS_NOK;
 			appreply(pkt.hdr, CMD_GET_PUBKEY, rsp);
 			assert(1 == 2);
 		}
 
-		rsp[0] = STATUS_OK;
+		rsp[0] = FRAME_STATUS_OK;
 		memcpy_s(rsp + 1, sizeof(rsp) - 1, pubkey, 32);
 		appreply(pkt.hdr, CMD_GET_PUBKEY, rsp);
 
@@ -314,7 +311,7 @@ enum state wait_for_command(enum state state, struct context *ctx)
 		memcpy(ctx->vendor_ctx.pubkey, &pkt.cmd[1], 32);
 		ctx->vendor_ctx.pubkey_set = true;
 
-		rsp[0] = STATUS_OK;
+		rsp[0] = FRAME_STATUS_OK;
 		appreply(pkt.hdr, CMD_SET_PUBKEY, rsp);
 
 		break;
@@ -364,7 +361,7 @@ enum state wait_for_command(enum state state, struct context *ctx)
 		}
 
 		if (!user_is_present(3)) {
-			rsp[0] = STATUS_BAD;
+			rsp[0] = FRAME_STATUS_NOK;
 			appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
 			break;
 		}
@@ -378,12 +375,12 @@ enum state wait_for_command(enum state state, struct context *ctx)
 
 		if (update_init(&ctx->update_ctx, app_size, app_digest,
 				app_signature) != 0) {
-			rsp[0] = STATUS_BAD;
+			rsp[0] = FRAME_STATUS_NOK;
 			appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
 			assert(1 == 2);
 		}
 
-		rsp[0] = STATUS_OK;
+		rsp[0] = FRAME_STATUS_OK;
 		appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
 
 		state = STATE_WAIT_FOR_APP_CHUNK;

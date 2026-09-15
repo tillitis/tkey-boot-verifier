@@ -14,7 +14,10 @@ void appreply_nok(struct frame_header hdr)
 {
 	uint8_t buf[2];
 
-	buf[0] = genhdr(hdr.id, hdr.endpoint, 0x1, LEN_1);
+	if (frame_gen_hdr(hdr.id, hdr.f_domain, 0x1, 1, &buf[0]) != 0) {
+		debug_puts("frame_gen_hdr failed\n");
+		assert(1 == 2);
+	}
 	buf[1] = 0; // Not used, but smallest payload is 1 byte
 
 	write(IO_CDC, buf, 2);
@@ -23,19 +26,16 @@ void appreply_nok(struct frame_header hdr)
 // Send app reply with frame header, response code, and LEN_X-1 bytes from buf
 void appreply(struct frame_header hdr, enum appcmd rspcode, void *buf)
 {
-	size_t nbytes = 0; // Number of bytes in a reply frame
-			   // (including rspcode).
-	enum cmdlen len = LEN_1;
+	size_t nbytes = 0;	// Number of bytes in a reply frame
+				// (including rspcode).
 	uint8_t frame[1 + 128]; // Frame header + longest response
 
 	switch (rspcode) {
 	case CMD_GET_CDI:
-		len = LEN_128;
 		nbytes = 128;
 		break;
 
 	case CMD_GET_NAMEVERSION:
-		len = LEN_32;
 		nbytes = 32;
 		break;
 
@@ -48,7 +48,10 @@ void appreply(struct frame_header hdr, enum appcmd rspcode, void *buf)
 	}
 
 	// Frame Protocol Header
-	frame[0] = genhdr(hdr.id, hdr.endpoint, 0x0, len);
+	if (frame_gen_hdr(hdr.id, hdr.f_domain, 0x0, nbytes, &frame[0]) != 0) {
+		debug_puts("frame_gen_hdr failed\n");
+		assert(1 == 2);
+	}
 	// App protocol header
 	frame[1] = rspcode;
 

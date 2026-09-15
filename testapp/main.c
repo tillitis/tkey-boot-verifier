@@ -149,7 +149,7 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 	uint8_t available = 0;
 	enum ioend endpoint = IO_NONE;
 
-	if (readselect(IO_CDC, &endpoint, &available) < 0) {
+	if (readselect(IO_CDC, false, &endpoint, &available) < 0) {
 		debug_putname();
 		debug_puts("readselect error");
 		return -1;
@@ -161,14 +161,14 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 		return -1;
 	}
 
-	if (parseframe(in, hdr) == -1) {
+	if (frame_parse_hdr(in, hdr) == -1) {
 		debug_putname();
 		debug_puts("Couldn't parse header\n");
 		return -1;
 	}
 
 	for (uint8_t n = 0; n < hdr->len;) {
-		if (readselect(IO_CDC, &endpoint, &available) < 0) {
+		if (readselect(IO_CDC, false, &endpoint, &available) < 0) {
 			debug_putname();
 			debug_puts("readselect errror");
 			return -1;
@@ -194,7 +194,7 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 	// attempting to probe for firmware. In that case destination
 	// is firmware and we just reply NOK, discarding all bytes
 	// already read.
-	if (hdr->endpoint == DST_FW) {
+	if (hdr->f_domain == DST_FW) {
 		appreply_nok(*hdr);
 		debug_putname();
 		debug_puts("Responded NOK to message meant for fw\n");
@@ -205,7 +205,7 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 
 	// Is it for us? If not, return error after having discarded
 	// all bytes.
-	if (hdr->endpoint != DST_SW) {
+	if (hdr->f_domain != DST_SW) {
 		debug_putname();
 		debug_puts("Message not meant for app. endpoint was 0x");
 		debug_puthex(hdr->endpoint);

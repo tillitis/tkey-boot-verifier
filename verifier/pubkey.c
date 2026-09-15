@@ -21,7 +21,7 @@ void store_pubkey(struct packet pkt)
 	}
 
 	if (!user_is_present(1)) {
-		rsp[0] = STATUS_BAD;
+		rsp[0] = FRAME_STATUS_NOK;
 		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 		return;
 	}
@@ -34,7 +34,7 @@ void store_pubkey(struct packet pkt)
 	if (sys_preload_get_metadata(app_digest, app_signature, pubkey) != 0) {
 		debug_puts("verifier:"
 			   " sys_preload_get_metadata failed\n");
-		rsp[0] = STATUS_BAD;
+		rsp[0] = FRAME_STATUS_NOK;
 		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 		return;
 	}
@@ -45,7 +45,7 @@ void store_pubkey(struct packet pkt)
 
 	if (blake2s(digest, 32, NULL, 0, &pkt.cmd[1], 32) != 0) {
 		debug_puts("verifier: couldn't do blake2s\n");
-		rsp[0] = STATUS_BAD;
+		rsp[0] = FRAME_STATUS_NOK;
 		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 		return;
 	}
@@ -64,17 +64,17 @@ void store_pubkey(struct packet pkt)
 	// pubkey
 	if (crypto_ed25519_check(&pkt.cmd[33], pubkey, digest, 32) != 0) {
 		debug_puts("verifier: signature verification failed\n");
-		rsp[0] = STATUS_BAD;
+		rsp[0] = FRAME_STATUS_NOK;
 		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 		return;
 	}
 
 	if (sys_preload_set_pubkey(&pkt.cmd[1]) != 0) {
-		rsp[0] = STATUS_BAD;
+		rsp[0] = FRAME_STATUS_NOK;
 		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 		return;
 	}
 
-	rsp[0] = STATUS_OK;
+	rsp[0] = FRAME_STATUS_OK;
 	appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 }
