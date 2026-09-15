@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/ed25519"
 	_ "embed"
@@ -11,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"tkey-mgt/sigfile"
 
@@ -46,6 +48,23 @@ func reconnect(tk *tkeyclient.TillitisKey) error {
 	return nil
 }
 
+func userConfirm() bool {
+        fmt.Printf("\nAny data stored by the app(s) will be erased and cannot be restored.")
+
+        fmt.Printf("\nAre you sure? Press y to continue or anything else to abort.\n")
+
+        reader := bufio.NewReader(os.Stdin)
+        input, _ := reader.ReadString('\n')
+
+        // Trim whitespace to remove any remaining Windows line ending
+        input = strings.TrimSpace(input)
+
+        if input != "y" {
+                return false
+        }
+        return true
+}
+
 func eraseAll(tk *tkeyclient.TillitisKey) error {
 	err := tk.Reset(tkeyclient.RstTypeStartFlash0, tkeyclient.VerifierCmdMode)
 	if err != nil {
@@ -57,8 +76,12 @@ func eraseAll(tk *tkeyclient.TillitisKey) error {
 		return err
 	}
 
+	if !userConfirm() {
+		return fmt.Errorf("User aborted")
+	}
+
 	fmt.Printf("Your TKey will begin to blink yellow.\n")
-	fmt.Printf("Any data stored by any app will be erased and cannot be restored. Confirm the erase operation by touching the TKey touch sensor three times.\n")
+	fmt.Printf("Confirm the erase operation by touching the TKey touch sensor three times.\n")
 	fmt.Printf("If you want to abort then wait for the process to timeout.\n")
 
 	err = eraseAreas(tk)
