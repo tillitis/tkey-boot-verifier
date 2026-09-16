@@ -8,12 +8,6 @@
 
 #include "app_proto.h"
 
-#define TKEY_VERSION_CASTOR 6
-
-// clang-format off
-static volatile uint32_t *ver		= (volatile uint32_t *) TK1_MMIO_TK1_VERSION;
-// clang-format on
-
 // Send reply frame with response status Not OK (NOK==1), shortest length
 void appreply_nok(struct frame_header hdr)
 {
@@ -26,10 +20,6 @@ void appreply_nok(struct frame_header hdr)
 	}
 
 	buf[1] = 0; // Not used, but smallest payload is 1 byte
-
-	if (*ver < TKEY_VERSION_CASTOR) {
-		assert(1 == 2); // Earlier versions not supported
-	}
 
 	write(dst, buf, 2);
 }
@@ -89,10 +79,6 @@ void appreply(struct frame_header hdr, enum appcmd rspcode, void *buf)
 
 	// Copy payload after app protocol header
 	memcpy(&frame[2], buf, nbytes - 1);
-
-	if (*ver < TKEY_VERSION_CASTOR) {
-		assert(1 == 2); // Earlier versions not supported
-	}
 
 	write(dst, frame, 1 + nbytes);
 }

@@ -43,17 +43,13 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 	memset(hdr, 0, sizeof(struct frame_header));
 	memset(cmd, 0, CMDLEN_MAXBYTES);
 
-	if (*ver >= TKEY_VERSION_CASTOR) {
-		if (readselect(IO_CDC, false, &endpoint, &available) < 0) {
-			debug_puts("verifier: readselect errror");
-			return -1;
-		}
+	if (readselect(IO_CDC, false, &endpoint, &available) < 0) {
+		debug_puts("verifier: readselect errror");
+		return -1;
+	}
 
-		if (read(IO_CDC, &in, 1, 1) < 0) {
-			return -1;
-		}
-	} else {
-		assert(1 == 2); // Earlier versions not supported.
+	if (read(IO_CDC, &in, 1, 1) < 0) {
+		return -1;
 	}
 
 	if (frame_parse_hdr(in, hdr) == -1) {
@@ -61,36 +57,31 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 		return -1;
 	}
 
-	if (*ver >= TKEY_VERSION_CASTOR) {
-		for (uint8_t n = 0; n < hdr->len;) {
-			if (readselect(IO_CDC, false, &endpoint, &available) <
-			    0) {
-				debug_puts("verifier: readselect errror");
-				return -1;
-			}
-
-			// Read as much as is available from what
-			// remains
-			if (available > hdr->len - n) {
-				available = hdr->len - n;
-			}
-
-			debug_puts("verifier: reading ");
-			debug_putinthex(available);
-			debug_lf();
-
-			int nbytes = read(IO_CDC, &cmd[n], CMDLEN_MAXBYTES - n,
-					  available);
-			if (nbytes < 0) {
-				debug_puts("verifier: read: buffer overrun\n");
-
-				return -1;
-			}
-
-			n += nbytes;
+	for (uint8_t n = 0; n < hdr->len;) {
+		if (readselect(IO_CDC, false, &endpoint, &available) < 0) {
+			debug_puts("verifier: readselect errror");
+			return -1;
 		}
-	} else {
-		assert(1 == 2); // Earlier versions not supported.
+
+		// Read as much as is available from what
+		// remains
+		if (available > hdr->len - n) {
+			available = hdr->len - n;
+		}
+
+		debug_puts("verifier: reading ");
+		debug_putinthex(available);
+		debug_lf();
+
+		int nbytes =
+		    read(IO_CDC, &cmd[n], CMDLEN_MAXBYTES - n, available);
+		if (nbytes < 0) {
+			debug_puts("verifier: read: buffer overrun\n");
+
+			return -1;
+		}
+
+		n += nbytes;
 	}
 
 	// Well-behaved apps are supposed to check for a client
@@ -414,6 +405,10 @@ int main(void)
 	*cpu_mon_first = *app_addr + *app_size;
 	*cpu_mon_last = TK1_RAM_BASE + TK1_RAM_SIZE;
 	*cpu_mon_ctrl = 1;
+
+	if (*ver < TKEY_VERSION_CASTOR) {
+		assert(1 == 2); // Earlier versions not supported
+	}
 
 	for (;;) {
 		switch (state) {
