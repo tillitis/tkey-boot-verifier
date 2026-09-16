@@ -41,7 +41,7 @@ var (
 	cmdStorePubkey    = appCmd{0x06, "cmdStorePubkey", tkeyclient.CmdLen128}
 	cmdSetPubkey      = appCmd{0x07, "cmdSetPubkey", tkeyclient.CmdLen128}
 	cmdEraseAreas     = appCmd{0x08, "cmdEraseAreas", tkeyclient.CmdLen1}
-	cmdReset          = appCmd{0xfe, "cmdReset", tkeyclient.CmdLen4}
+	cmdReset          = appCmd{0xfe, "cmdReset", tkeyclient.CmdLen128}
 
 	rspVerify         = appCmd{0x01, "rspVerify", tkeyclient.CmdLen4}
 	rspUpdateAppInit  = appCmd{0x03, "rspUpdateAppInit", tkeyclient.CmdLen4}
@@ -56,25 +56,6 @@ const devicePresenceTimeoutS = 20
 const devicePresenceRepeatDelayS = 1
 const devicePresenceRepeats = 3
 const userPresenceTimeout = (devicePresenceTimeoutS + devicePresenceRepeatDelayS) * devicePresenceRepeats
-
-type fwResetType uint8
-
-const (
-	fwResetTypeStartDefault   fwResetType = 0
-	fwResetTypeStartFlash0    fwResetType = 1
-	fwResetTypeStartFlash1    fwResetType = 2
-	fwResetTypeStartFlash0Ver fwResetType = 3
-	fwResetTypeStartFlash1Ver fwResetType = 4
-	fwResetTypeStartClient    fwResetType = 5
-	fwResetTypeStartClientVer fwResetType = 6
-)
-
-type resetDst uint8
-
-const (
-	verifierResetDstApp1    = 0
-	verifierResetDstCmdMode = 1
-)
 
 func eraseAreas(tk *tkeyclient.TillitisKey) error {
 	id := 0x01
