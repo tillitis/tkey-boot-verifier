@@ -48,17 +48,15 @@ void debug_putname(void)
 	debug_puts(": ");
 }
 
-void reset(uint32_t type, enum bv_nad reset_dst)
+void reset(uint32_t type, uint8_t next_app_data[126])
 {
-	if (reset_dst >= BV_NAD_COUNT) {
-		assert(1 == 2);
-	}
 
 	struct reset rst = {0};
 	rst.type = type;
-	rst.next_app_data[0] = reset_dst;
+	memcpy_s(rst.next_app_data, sizeof(rst.next_app_data), next_app_data,
+		 126);
 
-	sys_reset(&rst, 1);
+	sys_reset(&rst, 126);
 }
 
 static enum state started_commands(enum state state, struct packet pkt)
@@ -114,7 +112,7 @@ static enum state started_commands(enum state state, struct packet pkt)
 		debug_putname();
 		debug_puts("CMD_RESET\n");
 
-		if (pkt.hdr.len != 4) {
+		if (pkt.hdr.len != 128) {
 			debug_putname();
 			debug_puts("unexpected pkt.hdr.len: 0x");
 			debug_puthex(pkt.hdr.len);
@@ -123,7 +121,8 @@ static enum state started_commands(enum state state, struct packet pkt)
 			break;
 		}
 
-		reset(pkt.cmd[1], pkt.cmd[2]);
+		uint8_t *p_next_app_data = pkt.cmd + 2;
+		reset(pkt.cmd[1], p_next_app_data);
 		debug_putname();
 		debug_puts("expected reset");
 
