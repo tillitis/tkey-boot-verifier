@@ -87,19 +87,19 @@ func main() {
 		fmt.Printf("%s%s %d\n", nameVer.Name0, nameVer.Name1, nameVer.Version)
 
 	case "reset":
-		rstType, err := fwResetTypeFromInt(*fwResType)
+		rstType, err := resetTypeFromInt(*fwResType)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			exit(1)
 		}
 
-		dst, err := resetDstFromInt(*verifierResetDst)
+		dst, err := nextAppDataFromInt(*verifierResetDst)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			exit(1)
 		}
 
-		err = reset(tk, rstType, dst)
+		err = tk.Reset(rstType, dst)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			exit(1)

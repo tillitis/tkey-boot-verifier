@@ -36,42 +36,24 @@ var (
 	rspGetCDI  = appCmd{0x01, "rspGetCDI", tkeyclient.CmdLen128}
 	cmdGetNameVersion  = appCmd{0x02, "cmdGetNameVersion", tkeyclient.CmdLen1}
 	rspGetNameVersion  = appCmd{0x02, "rspGetNameVersion", tkeyclient.CmdLen32}
-	cmdReset = appCmd{0xfe, "cmdReset", tkeyclient.CmdLen4}
 )
 
-type fwResetType uint8
-
-const (
-	fwResetTypeStartDefault   fwResetType = 0
-	fwResetTypeStartFlash0    fwResetType = 1
-	fwResetTypeStartFlash1    fwResetType = 2
-	fwResetTypeStartFlash0Ver fwResetType = 3
-	fwResetTypeStartFlash1Ver fwResetType = 4
-	fwResetTypeStartClient    fwResetType = 5
-	fwResetTypeStartClientVer fwResetType = 6
-)
-
-func fwResetTypeFromInt(i int) (fwResetType, error) {
-	if i < int(fwResetTypeStartDefault) || i > int(fwResetTypeStartClientVer) {
+func resetTypeFromInt(i int) (tkeyclient.ResetType, error) {
+	if i < int(tkeyclient.RstTypeStartDefault) || i > int(tkeyclient.RstTypeStartClientVer) {
 		return 0, fmt.Errorf("invalid reset type: %d", i)
 	}
 
-	return fwResetType(i), nil
+	return tkeyclient.ResetType(i), nil
 }
 
-type resetDst uint8
-
-const (
-	verifierResetDstApp1    resetDst = 0
-	verifierResetDstCmdMode resetDst = 1
-)
-
-func resetDstFromInt(i int) (resetDst, error) {
-	if i < int(verifierResetDstApp1) || i > int(verifierResetDstCmdMode) {
-		return 0, fmt.Errorf("invalid reset dst: %d", i)
+func nextAppDataFromInt(i int) (tkeyclient.NextAppData, error) {
+	if i < 0 || i > 1 {
+		return tkeyclient.NextAppData{}, fmt.Errorf("invalid reset dst: %d", i)
 	}
 
-	return resetDst(i), nil
+	var d = tkeyclient.NewNextAppDataFromSlice([]byte{byte(i)})
+
+	return d, nil
 }
 
 func getCDI(tk *tkeyclient.TillitisKey) (string, error) {
@@ -123,24 +105,4 @@ func getNameVersion(tk *tkeyclient.TillitisKey) (*tkeyclient.NameVersion, error)
 	nameVer.Unpack(rx[2:])
 
 	return nameVer, nil
-}
-
-func reset(tk *tkeyclient.TillitisKey, fwType fwResetType, verifierDst resetDst) error {
-	id := 0x01
-
-	tx, err := tkeyclient.NewFrameBuf(cmdReset, id)
-	if err != nil {
-		return err
-	}
-
-	tx[2] = uint8(fwType)
-	tx[3] = uint8(verifierDst)
-
-	tkeyclient.Dump("reset tx", tx)
-
-	if err = tk.Write(tx); err != nil {
-		return fmt.Errorf("write: %w", err)
-	}
-
-	return nil
 }
