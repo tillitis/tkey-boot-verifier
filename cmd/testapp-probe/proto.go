@@ -39,7 +39,7 @@ var (
 )
 
 func resetTypeFromInt(i int) (tkeyclient.ResetType, error) {
-	if i < int(tkeyclient.RstTypeStartDefault) || i > int(tkeyclient.RstTypeStartClientVer) {
+	if i < int(tkeyclient.RstTypeStartFlash0) || i > int(tkeyclient.RstTypeStartClientVer) {
 		return 0, fmt.Errorf("invalid reset type: %d", i)
 	}
 
