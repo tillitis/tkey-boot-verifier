@@ -213,7 +213,7 @@ static void wait_for_app_chunk(struct context *ctx)
 			}
 
 			struct reset rst = {0};
-			rst.type = START_DEFAULT;
+			rst.type = START_FLASH0;
 			rst.next_app_data[0] = BV_NAD_BOOT_APP_1;
 			sys_reset(&rst, 1);
 		}

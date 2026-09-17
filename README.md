@@ -235,7 +235,7 @@ verifier and then load a verified app.
 
 | *reset type*              | *app digest*  | *next app data*         | *next app*                 |
 |---------------------------|---------------|-------------------------|----------------------------|
-| START_DEFAULT (Cold boot) | H(verifier X) | 000...                  | Verifier X from slot 0     |
+| START_FLASH0 (Cold boot)  | H(verifier X) | 000...                  | Verifier X from slot 0     |
 | START_FLASH1_VER          | H(app A)      | -                       | App A from slot 1          |
 | START_CLIENT_VER          | H(verifier Y) | BV_NAD_WAIT_FOR_COMMAND | Verifier Y from client     |
 | START_CLIENT_VER          | H(app B)      | -                       | App B from client          |
