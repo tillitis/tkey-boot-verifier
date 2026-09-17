@@ -3,7 +3,7 @@ module tkey-mgt
 go 1.24.1
 
 require (
-	github.com/tillitis/tkeyclient v1.3.2-0.20260916070257-8a6c73692db2
+	github.com/tillitis/tkeyclient v1.3.2-0.20260916134913-2294af7041ee
 	golang.org/x/crypto v0.40.0
 )
 
