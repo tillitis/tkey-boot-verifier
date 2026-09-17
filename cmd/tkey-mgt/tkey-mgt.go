@@ -244,7 +244,7 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) er
 
 	fmt.Printf("\nPubkey updated\n")
 
-	err = tk.Reset(tkeyclient.RstTypeStartDefault, tkeyclient.VerifierBootSlot1)
+	err = tk.Reset(tkeyclient.RstTypeStartFlash0, tkeyclient.VerifierBootSlot1)
 	if err != nil {
 		return err
 	}
