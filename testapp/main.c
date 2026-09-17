@@ -6,6 +6,7 @@
 #include <tkey/led.h>
 #include <tkey/lib.h>
 #include <tkey/syscall.h>
+#include <tkey/timer.h>
 #include <tkey/tk1_mem.h>
 
 #include "../verifier/bv_nad.h"
@@ -207,7 +208,7 @@ static int read_command(struct frame_header *hdr, uint8_t *cmd)
 	if (hdr->f_domain != DST_SW) {
 		debug_putname();
 		debug_puts("Message not meant for app. endpoint was 0x");
-		debug_puthex(hdr->endpoint);
+		debug_puthex(hdr->f_domain);
 		debug_lf();
 
 		return -1;
@@ -222,15 +223,21 @@ int main(void)
 
 	led_set(app_led_color);
 
-	debug_putname();
-	debug_lf();
-
 	// Use Execution Monitor on RAM after app
 	*cpu_mon_first = *app_addr + *app_size;
 	*cpu_mon_last = TK1_RAM_BASE + TK1_RAM_SIZE;
 	*cpu_mon_ctrl = 1;
 
+#if defined(TKEY_DEBUG)
+	config_endpoints(IO_CDC | IO_DEBUG);
+	// If we don't wait here the first debug messages will be dropped
+	timer_wait(1);
+#else
 	config_endpoints(IO_CDC);
+#endif
+
+	debug_putname();
+	debug_lf();
 
 	for (;;) {
 		struct packet pkt = {0};
