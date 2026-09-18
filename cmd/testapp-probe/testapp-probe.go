@@ -104,6 +104,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			exit(1)
 		}
+		err = tk.WaitClosed()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			exit(1)
+		}
 
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %s\n", *cmd)
