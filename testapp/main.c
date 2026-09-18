@@ -123,6 +123,11 @@ static enum state started_commands(enum state state, struct packet pkt)
 		}
 
 		uint8_t *p_next_app_data = pkt.cmd + 2;
+
+#if defined(TKEY_DEBUG)
+		// Make sure debug messages are flushed before reset
+		timer_wait(1);
+#endif
 		reset(pkt.cmd[1], p_next_app_data);
 		debug_putname();
 		debug_puts("expected reset");
