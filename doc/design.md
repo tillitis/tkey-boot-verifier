@@ -128,14 +128,20 @@ Quick reminder of how the TKey (Castor version) works:
      app, since it doesn't know the UDS. Key material isn't leaked
      either up or down the chain.
 
-  The domain byte is used to separate the following cases:
+  The domain byte is used to separate combinations of the following:
+  
+  - Directly loaded or chained app
+  - USS or no USS
+  - Boot type (resetinfo.type)
 
-  | *Bitstring* | *Value* | *Comment*                     |
-  |-------------|---------|-------------------------------|
-  | 00          | 0       | Directly loaded app, no USS   |
-  | 01          | 1       | Directly loaded app, with USS |
-  | 10          | 2       | Chained app, no USS           |
-  | 11          | 3       | Chained app, with USS         |
+  | *Bits* | *Name*            | *Value* | *Meaning*                               |
+  |--------|-------------------|---------|-----------------------------------------|
+  | 0      | DOMAIN_USS_USED   | 0       | No USS                                  |
+  |        |                   | 1       | USS                                     |
+  | 1      | DOMAIN_CHAINED    | 0       | Directly loaded app                     |
+  |        |                   | 1       | Chained app                             |
+  | 2:3    | DOMAIN_RESET_TYPE | 0-3     | Value present in resetinfo.type at boot |
+  | 4:7    |                   |         | Reserved, all zeros                     |
 
   - Directly loaded app: the app's BLAKE2s digest is used.
   - Chained app: the `measured_id` measurement from before a reset is used.
@@ -157,7 +163,7 @@ documentation](https://github.com/tillitis/tillitis-key1/tree/main/hw/applicatio
 ```mermaid
 sequenceDiagram
     Firmware->>Firmware: LoadFirstStageApp
-    Firmware->>Firmware: CDI = blake2s(k = UDS, d = domain0/1 || blake2s(First Stage App) || USS)
+    Firmware->>Firmware: CDI = blake2s(k = UDS, d = domain<DOMAIN_CHAINED=0> || blake2s(First Stage App) || USS)
     create participant First Stage App
     Firmware->>First Stage App: CDI
     First Stage App->>First Stage App: Fetch(vendor_pubkey, vendor_signature, app_digest)
@@ -169,13 +175,10 @@ sequenceDiagram
     Firmware->>Firmware: Reset
     Firmware->>Firmware: Load Second Stage app
     Firmware->>Firmware: Verify(blake2s(loaded app) == second_stage_app_digest)
-    Firmware->>Firmware: CDI = blake2s(k = UDS, d = domain2/3 || measured_id || USS)
+    Firmware->>Firmware: CDI = blake2s(k = UDS, d = domain<DOMAIN_CHAINED=1> || measured_id || USS)
     create participant Second Stage App
     Firmware->>Second Stage App: CDI
 ```
-
-- domain0/1 above: Domain byte is set to 00 or 01.
-- domain2/3 above: Domain byte is set to 10 or 11.
 
 The boot verifier app fetches (from the filesystem or from the client):
 
@@ -201,13 +204,13 @@ measured_id = blake2s(
 
 Then does a hardware reset, which starts firmware again from the
 beginning. `measured_id` survives the reset and is used for the next
-CDI computation, with the domain byte set to 10 or 11 depending if the
-USS is used:
+CDI computation, with the DOMAIN_CHAINED bit in the domain byte set to
+1:
 
 ```
 CDI = blake2s(
     key = UDS,
-    data = domain2/3 || measured_id || USS)
+    data = domain<DOMAIN_CHAINED=1> || measured_id || USS)
 ```
 
 In order to satisfy the requirement for different CDI for different
