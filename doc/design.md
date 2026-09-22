@@ -86,7 +86,7 @@ Quick reminder of how the TKey (Castor version) works:
      ```
      CDI = BLAKE2s(
          key = UDS,
-         data = domain || blake2s(entire device app in RAM)[|| USS])
+         data = domain || blake2s(entire device app in RAM) [|| USS])
      ```
 
   2. If the previous app asks for it (indicated by setting the
@@ -163,7 +163,7 @@ documentation](https://github.com/tillitis/tillitis-key1/tree/main/hw/applicatio
 ```mermaid
 sequenceDiagram
     Firmware->>Firmware: LoadFirstStageApp
-    Firmware->>Firmware: CDI = blake2s(k = UDS, d = domain<DOMAIN_CHAINED=0> || blake2s(First Stage App) || USS)
+    Firmware->>Firmware: CDI = blake2s(k = UDS, d = domain<DOMAIN_CHAINED=0> || blake2s(First Stage App) [|| USS])
     create participant First Stage App
     Firmware->>First Stage App: CDI
     First Stage App->>First Stage App: Fetch(vendor_pubkey, vendor_signature, app_digest)
@@ -175,7 +175,7 @@ sequenceDiagram
     Firmware->>Firmware: Reset
     Firmware->>Firmware: Load Second Stage app
     Firmware->>Firmware: Verify(blake2s(loaded app) == second_stage_app_digest)
-    Firmware->>Firmware: CDI = blake2s(k = UDS, d = domain<DOMAIN_CHAINED=1> || measured_id || USS)
+    Firmware->>Firmware: CDI = blake2s(k = UDS, d = domain<DOMAIN_CHAINED=1> || measured_id [|| USS])
     create participant Second Stage App
     Firmware->>Second Stage App: CDI
 ```
@@ -210,7 +210,7 @@ CDI computation, with the DOMAIN_CHAINED bit in the domain byte set to
 ```
 CDI = blake2s(
     key = UDS,
-    data = domain<DOMAIN_CHAINED=1> || measured_id || USS)
+    data = domain<DOMAIN_CHAINED=1> || measured_id [|| USS])
 ```
 
 In order to satisfy the requirement for different CDI for different
