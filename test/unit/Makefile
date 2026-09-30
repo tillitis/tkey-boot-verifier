@@ -1,7 +1,7 @@
 CC = clang
 
-LIBDIR = ../tkey-libs
-APPDIR = ../verifier
+LIBDIR = ../../tkey-libs
+APPDIR = ../../verifier
 
 CMOCKA_CONFIG = \
 	-DHAVE_MALLOC_H \
