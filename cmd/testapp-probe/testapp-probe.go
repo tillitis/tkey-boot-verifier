@@ -5,6 +5,7 @@ package main
 
 import (
 	_ "embed"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
@@ -20,11 +21,12 @@ func usage() {
 func main() {
 	var err error
 
-	cmd := flag.String("cmd", "", "Command. One of: reset, get-cdi, get-nameversion")
+	cmd := flag.String("cmd", "", "Command. One of: reset, get-cdi, get-nameversion, reset-app-digest")
 	port := flag.String("port", "", "TKey serial port")
 	fwResType := flag.Int("fw-reset-type", 0, "Firmware reset type. Integer")
 	verifierResetDst := flag.Int("verifier-reset-dst", 0, "Verifier reset dst. Integer")
 	noExpectClose := flag.Bool("no-expect-close", false, "Do not expect serial port to disappear when TKey resets")
+	appDigest := flag.String("app-digest", "", "App digest the app should write to resetinfo before a reset. Hex string")
 
 	flag.Usage = usage
 
@@ -100,6 +102,37 @@ func main() {
 		}
 
 		err = tk.Reset(rstType, dst)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			exit(1)
+		}
+		err = tk.WaitClosed()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			exit(1)
+		}
+
+	case "reset-app-digest":
+		digest, err := hex.DecodeString(*appDigest)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid app-digest: %v\n", err)
+			exit(1)
+		}
+
+		if len(digest) != 32 {
+			fmt.Fprintf(os.Stderr, "invalid digest length %d, want 32\n", len(digest))
+			exit(1)
+		}
+		var dig [32]byte
+		copy(dig[:], digest)
+
+		rstType, err := resetTypeFromInt(*fwResType)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			exit(1)
+		}
+
+		err = resetAppDigest(tk, rstType, dig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			exit(1)

@@ -9,6 +9,7 @@
 enum appcmd {
 	CMD_GET_CDI = 0x01,
 	CMD_GET_NAMEVERSION = 0x02,
+	CMD_RESET_WITH_APP_DIGEST = 0x03,
 	CMD_RESET = 0xfe,
 	CMD_FW_PROBE = 0xff,
 };
