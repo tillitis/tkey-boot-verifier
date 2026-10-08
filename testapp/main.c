@@ -49,15 +49,26 @@ void debug_putname(void)
 	debug_puts(": ");
 }
 
-void reset(uint32_t type, uint8_t next_app_data[126])
+int reset(uint32_t type, uint8_t next_app_data[126],
+	  uint8_t app_digest[RESET_DIGEST_SIZE])
 {
 
 	struct reset rst = {0};
 	rst.type = type;
-	memcpy_s(rst.next_app_data, sizeof(rst.next_app_data), next_app_data,
-		 126);
+	size_t len = 0;
 
-	sys_reset(&rst, 126);
+	if (next_app_data != NULL) {
+		memcpy_s(rst.next_app_data, sizeof(rst.next_app_data),
+			 next_app_data, 126);
+		len = 126;
+	}
+
+	if (app_digest != NULL) {
+		memcpy_s(rst.app_digest, RESET_DIGEST_SIZE, app_digest,
+			 RESET_DIGEST_SIZE);
+	}
+
+	return sys_reset(&rst, len);
 }
 
 static enum state started_commands(enum state state, struct packet pkt)
@@ -65,6 +76,7 @@ static enum state started_commands(enum state state, struct packet pkt)
 	uint8_t rsp[CMDLEN_MAXBYTES] = {0}; // Response
 	size_t rsp_left =
 	    CMDLEN_MAXBYTES; // How many bytes left in response buf
+	int ret = 0;
 
 	// Smallest possible payload length (cmd) is 1 byte.
 	switch (pkt.cmd[0]) {
@@ -109,6 +121,34 @@ static enum state started_commands(enum state state, struct packet pkt)
 
 		break;
 
+	case CMD_RESET_WITH_APP_DIGEST:
+		debug_putname();
+		debug_puts("CMD_RESET_WITH_APP_DIGEST\n");
+
+		if (pkt.hdr.len != 128) {
+			debug_putname();
+			debug_puts("unexpected pkt.hdr.len: 0x");
+			debug_puthex(pkt.hdr.len);
+			debug_lf();
+			state = STATE_FAILED;
+			break;
+		}
+
+		uint8_t *p_app_digest = pkt.cmd + 2;
+
+#if defined(TKEY_DEBUG)
+		// Make sure debug messages are flushed before reset
+		timer_wait(1);
+#endif
+		ret = reset(pkt.cmd[1], NULL, p_app_digest);
+		debug_putname();
+		debug_puts("expected reset: ");
+		debug_putinthex(ret);
+		debug_lf();
+
+		state = STATE_FAILED;
+		break;
+
 	case CMD_RESET:
 		debug_putname();
 		debug_puts("CMD_RESET\n");
@@ -128,9 +168,11 @@ static enum state started_commands(enum state state, struct packet pkt)
 		// Make sure debug messages are flushed before reset
 		timer_wait(1);
 #endif
-		reset(pkt.cmd[1], p_next_app_data);
+		ret = reset(pkt.cmd[1], p_next_app_data, NULL);
 		debug_putname();
-		debug_puts("expected reset");
+		debug_puts("expected reset: ");
+		debug_putinthex(ret);
+		debug_lf();
 
 		state = STATE_FAILED;
 		break;
@@ -246,15 +288,16 @@ int main(void)
 
 	for (;;) {
 		struct packet pkt = {0};
-
-		if (read_command(&pkt.hdr, pkt.cmd) != 0) {
-			debug_putname();
-			debug_puts("read_command returned != 0!\n");
-			state = STATE_FAILED;
-		}
-
 		switch (state) {
 		case STATE_STARTED:
+
+			if (read_command(&pkt.hdr, pkt.cmd) != 0) {
+				debug_putname();
+				debug_puts("read_command returned != 0!\n");
+				state = STATE_FAILED;
+				break;
+			}
+
 			debug_putname();
 			debug_puts("STATE_STARTED");
 			debug_lf();
@@ -265,6 +308,10 @@ int main(void)
 			debug_putname();
 			debug_puts("STATE_FAILED");
 			debug_lf();
+#if defined(TKEY_DEBUG)
+			// Make sure debug messages are flushed before assert
+			timer_wait(1);
+#endif
 			assert(1 == 2);
 			break; // Not reached
 
