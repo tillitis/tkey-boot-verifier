@@ -32,10 +32,11 @@ func (c appCmd) String() string {
 }
 
 var (
-	cmdGetCDI  = appCmd{0x01, "cmdGetCDI", tkeyclient.CmdLen1}
-	rspGetCDI  = appCmd{0x01, "rspGetCDI", tkeyclient.CmdLen128}
-	cmdGetNameVersion  = appCmd{0x02, "cmdGetNameVersion", tkeyclient.CmdLen1}
-	rspGetNameVersion  = appCmd{0x02, "rspGetNameVersion", tkeyclient.CmdLen32}
+	cmdGetCDI         = appCmd{0x01, "cmdGetCDI", tkeyclient.CmdLen1}
+	rspGetCDI         = appCmd{0x01, "rspGetCDI", tkeyclient.CmdLen128}
+	cmdGetNameVersion = appCmd{0x02, "cmdGetNameVersion", tkeyclient.CmdLen1}
+	rspGetNameVersion = appCmd{0x02, "rspGetNameVersion", tkeyclient.CmdLen32}
+	cmdResetAppDigest = appCmd{0x03, "cmdResetAppDigest", tkeyclient.CmdLen128}
 )
 
 func resetTypeFromInt(i int) (tkeyclient.ResetType, error) {
@@ -105,4 +106,24 @@ func getNameVersion(tk *tkeyclient.TillitisKey) (*tkeyclient.NameVersion, error)
 	nameVer.Unpack(rx[2:])
 
 	return nameVer, nil
+}
+
+func resetAppDigest(tk *tkeyclient.TillitisKey, t tkeyclient.ResetType, appDigest [32]byte) error {
+	id := 0x01
+
+	tx, err := tkeyclient.NewFrameBuf(cmdResetAppDigest, id)
+	if err != nil {
+		return err
+	}
+
+	tx[2] = uint8(t)
+	copy(tx[3:], appDigest[:])
+
+	tkeyclient.Dump("resetAppDigest tx", tx)
+
+	if err = tk.Write(tx); err != nil {
+		return err
+	}
+
+	return nil
 }
