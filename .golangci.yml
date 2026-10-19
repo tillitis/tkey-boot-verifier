@@ -1,0 +1,92 @@
+version: "2"
+linters:
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - dupword
+    - durationcheck
+    - errchkjson
+    - errorlint
+    - exhaustive
+    - fatcontext
+    - gocheckcompilerdirectives
+    - gochecksumtype
+    - gocritic
+    - gocyclo
+    - godox
+    - gomoddirectives
+    - gomodguard
+    - gosec
+    - gosmopolitan
+    - loggercheck
+    - maintidx
+    - makezero
+    - misspell
+    - musttag
+    - nilerr
+    - nilnesserr
+    - perfsprint
+    - prealloc
+    - protogetter
+    - reassign
+    - recvcheck
+    - revive
+    - rowserrcheck
+    - spancheck
+    - sqlclosecheck
+    - testableexamples
+    - testifylint
+    - thelper
+    - tparallel
+    - usetesting
+    - wrapcheck
+    - zerologlint
+  disable:
+    - cyclop
+    - depguard
+    - exhaustruct
+    - funlen
+    - gocognit
+    - godot
+    - nestif
+    - noctx
+    - unparam
+    - err113
+    - paralleltest
+    - recvcheck
+    - testpackage
+  settings:
+    govet:
+      enable:
+        - shadow
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+    rules:
+      - linters:
+          - revive
+        text: "var-naming: avoid meaningless package names"
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
