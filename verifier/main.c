@@ -3,6 +3,7 @@
 
 #include <monocypher/monocypher-ed25519.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 #include <tkey/assert.h>
@@ -18,6 +19,7 @@
 #include "app_proto.h"
 #include "bv_nad.h"
 #include "libsodium_crypto_core_ed25519.h"
+#include "mac.h"
 #include "pubkey.h"
 #include "update.h"
 #include "util.h"
@@ -177,6 +179,12 @@ static enum state verify_flash(void)
 		assert(1 == 2);
 	}
 
+	if (!mac_verify(&metadata)) {
+		debug_puts("verifier:"
+			   " mac_verify failed\n");
+		assert(1 == 2);
+	}
+
 	reset_if_verified(metadata.pubkey, START_FLASH1_VER, metadata.digest,
 			  metadata.signature);
 
@@ -291,6 +299,14 @@ enum state wait_for_command(enum state state, struct context *ctx)
 		if (sys_preload_get_metadata(&metadata) != 0) {
 			debug_puts("verifier:"
 				   " sys_preload_get_metadata failed\n");
+			rsp[0] = FRAME_STATUS_NOK;
+			appreply(pkt.hdr, CMD_GET_PUBKEY, rsp);
+			assert(1 == 2);
+		}
+
+		if (!mac_verify(&metadata)) {
+			debug_puts("verifier:"
+				   " mac_verify failed\n");
 			rsp[0] = FRAME_STATUS_NOK;
 			appreply(pkt.hdr, CMD_GET_PUBKEY, rsp);
 			assert(1 == 2);

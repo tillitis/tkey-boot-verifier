@@ -105,7 +105,9 @@ VERIFIEROBJS = \
     verifier/app_proto.o \
     verifier/update.o \
     verifier/pubkey.o \
-    verifier/util.o
+    verifier/util.o \
+    verifier/mac.o
+
 
 LIBSODIUMOBJS = \
     $(LIBSODIUMDIR)/src/libsodium_core_ed25519.o \
@@ -115,7 +117,7 @@ LIBSODIUMOBJS = \
 verifier/app.elf: $(VERIFIEROBJS) $(LIBSODIUMOBJS)
 	$(CC) $(CFLAGS) $(VERIFIEROBJS) $(LIBSODIUMOBJS) $(LDFLAGS) -I $(LIBDIR) -o $@
 $(VERIFIEROBJS): $(INCLUDE)/tkey/tk1_mem.h verifier/bv_nad.h verifier/app_proto.h \
-	verifier/pubkey.h verifier/update.h verifier/util.h verifier/verify.h
+	verifier/pubkey.h verifier/update.h verifier/util.h verifier/verify.h verifier/mac.h
 
 TESTAPPOBJS=testapp/main.o testapp/app_proto.o
 testapp/app_a.elf: $(TESTAPPOBJS) testapp/app_a.c
