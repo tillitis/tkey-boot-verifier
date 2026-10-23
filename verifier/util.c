@@ -28,8 +28,5 @@ bool user_is_present(int c)
 
 void signal_issue(void)
 {
-	for (uint8_t i = 0; i < 3; i++) {
-		led_set(i % 2 ? APP_LED_COLOR : LED_BLACK);
-		timer_wait(1);
-	}
+	led_error_alert(3, APP_LED_COLOR);
 }
