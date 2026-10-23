@@ -57,3 +57,10 @@ SPDX-License-Identifier = "Apache-2.0"
 path = "test/lib/cmocka/**"
 SPDX-FileCopyrightText = "NONE"
 SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "crypto/libsodium/**"
+SPDX-FileCopyrightText = [
+    "2013-2026 Frank Denis <j at pureftpd dot org>"
+]
+SPDX-License-Identifier = "ISC"
