@@ -4,6 +4,8 @@
 #include <blake2s/blake2s.h>
 #include <monocypher/monocypher-ed25519.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 #include <tkey/assert.h>
 #include <tkey/debug.h>
 #include <tkey/syscall.h>
@@ -27,11 +29,9 @@ void store_pubkey(struct packet pkt)
 	}
 
 	// Get the existing pubkey
-	uint8_t app_digest[32] = {0};
-	uint8_t app_signature[64] = {0};
-	uint8_t pubkey[32] = {0};
+	struct app_metadata metadata = {0};
 
-	if (sys_preload_get_metadata(app_digest, app_signature, pubkey) != 0) {
+	if (sys_preload_get_metadata(&metadata) != 0) {
 		debug_puts("verifier:"
 			   " sys_preload_get_metadata failed\n");
 		rsp[0] = FRAME_STATUS_NOK;
@@ -42,8 +42,10 @@ void store_pubkey(struct packet pkt)
 	// The signature is over the digest of the new pubkey, so
 	// compute the digest
 	uint8_t digest[32] = {0};
+	uint8_t *p_new_pubkey = &pkt.cmd[1];
+	uint8_t *p_new_signature = &pkt.cmd[33];
 
-	if (blake2s(digest, 32, NULL, 0, &pkt.cmd[1], 32) != 0) {
+	if (blake2s(digest, 32, NULL, 0, p_new_pubkey, 32) != 0) {
 		debug_puts("verifier: couldn't do blake2s\n");
 		rsp[0] = FRAME_STATUS_NOK;
 		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
@@ -62,14 +64,19 @@ void store_pubkey(struct packet pkt)
 	// Verify the signature we just got pkt.cmd[33] over the
 	// digest of new pubkey (pkt.cmd[1]) against already stored
 	// pubkey
-	if (crypto_ed25519_check(&pkt.cmd[33], pubkey, digest, 32) != 0) {
+	if (crypto_ed25519_check(p_new_signature, metadata.pubkey, digest,
+				 32) != 0) {
 		debug_puts("verifier: signature verification failed\n");
 		rsp[0] = FRAME_STATUS_NOK;
 		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 		return;
 	}
 
-	if (sys_preload_set_pubkey(&pkt.cmd[1]) != 0) {
+	// Signature verified, copy new pubkey
+	memcpy_s(metadata.pubkey, sizeof(metadata.pubkey), p_new_pubkey, 32);
+
+	if (sys_preload_set_metadata(&metadata) != 0) {
+		debug_puts("verifier: sys_preload_set_metadata failed\n");
 		rsp[0] = FRAME_STATUS_NOK;
 		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 		return;

@@ -166,10 +166,18 @@ void reset(uint32_t type, uint8_t next_app_data[126])
 	sys_reset(&rst, 126);
 }
 
-static enum state verify_flash(uint8_t app_digest[32],
-			       uint8_t app_signature[64], uint8_t pubkey[32])
+static enum state verify_flash(void)
 {
-	reset_if_verified(pubkey, START_FLASH1_VER, app_digest, app_signature);
+	struct app_metadata metadata = {0};
+
+	if (sys_preload_get_metadata(&metadata) != 0) {
+		debug_puts("verifier:"
+			   " sys_preload_get_metadata failed\n");
+		assert(1 == 2);
+	}
+
+	reset_if_verified(metadata.pubkey, START_FLASH1_VER, metadata.digest,
+			  metadata.signature);
 
 	signal_issue();
 
@@ -277,12 +285,9 @@ enum state wait_for_command(enum state state, struct context *ctx)
 			assert(1 == 2);
 		}
 
-		uint8_t app_digest[32];
-		uint8_t app_signature[64];
-		uint8_t pubkey[32];
+		struct app_metadata metadata = {0};
 
-		if (sys_preload_get_metadata(app_digest, app_signature,
-					     pubkey) != 0) {
+		if (sys_preload_get_metadata(&metadata) != 0) {
 			debug_puts("verifier:"
 				   " sys_preload_get_metadata failed\n");
 			rsp[0] = FRAME_STATUS_NOK;
@@ -291,7 +296,8 @@ enum state wait_for_command(enum state state, struct context *ctx)
 		}
 
 		rsp[0] = FRAME_STATUS_OK;
-		memcpy_s(rsp + 1, sizeof(rsp) - 1, pubkey, 32);
+		memcpy_s(rsp + 1, sizeof(rsp) - 1, metadata.pubkey,
+			 sizeof(metadata.pubkey));
 		appreply(pkt.hdr, CMD_GET_PUBKEY, rsp);
 
 		break;
@@ -332,8 +338,8 @@ enum state wait_for_command(enum state state, struct context *ctx)
 					  app_signature);
 		}
 
-		// Pubkey is expected to be set and reset_if_verified() should
-		// only return if we didn't reset.
+		// Pubkey is expected to be set and reset_if_verified()
+		// should only return if we didn't reset.
 		assert(1 == 2);
 
 		break;
@@ -407,9 +413,6 @@ int main(void)
 #ifdef BOOT_INTO_WAIT_FOR_COMMAND
 	state = STATE_INIT_WAIT_FOR_COMMAND;
 #endif
-	uint8_t app_digest[32] = {0};
-	uint8_t app_signature[64] = {0};
-	uint8_t pubkey[32] = {0};
 
 	// Use Execution Monitor on RAM after app
 	*cpu_mon_first = *app_addr + *app_size;
@@ -427,16 +430,9 @@ int main(void)
 			break;
 
 		case STATE_VERIFY_FLASH: {
-			if (sys_preload_get_metadata(app_digest, app_signature,
-						     pubkey) != 0) {
-				debug_puts(
-				    "verifier:"
-				    " sys_preload_get_metadata failed\n");
-				assert(1 == 2);
-			}
 
-			debug_puts("verifier: STATE_WAIT_VERIFY_FLASH\n");
-			state = verify_flash(app_digest, app_signature, pubkey);
+			debug_puts("verifier: STATE_VERIFY_FLASH\n");
+			state = verify_flash();
 			break;
 		}
 
