@@ -232,8 +232,6 @@ enum state wait_for_command(enum state state, struct context *ctx)
 
 	assert(ctx != NULL);
 
-	led_set(APP_LED_COLOR);
-
 	if (read_command(&pkt.hdr, pkt.cmd) != 0) {
 		debug_puts("read_command returned != 0!\n");
 		assert(1 == 2);
@@ -399,6 +397,8 @@ enum state wait_for_command(enum state state, struct context *ctx)
 
 int main(void)
 {
+	led_indicate_busy(APP_LED_COLOR);
+
 	debug_puts("verifier");
 	debug_lf();
 
