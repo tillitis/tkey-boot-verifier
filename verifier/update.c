@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Tillitis AB <tillitis.se>
 // SPDX-License-Identifier: BSD-2-Clause
 
+#include <monocypher/monocypher-ed25519.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
@@ -37,6 +38,13 @@ int update_init(struct update_ctx *ctx, size_t app_size, uint8_t app_digest[32],
 	}
 
 	if (!mac_verify(&metadata)) {
+		return -1;
+	}
+
+	// Verify the signature we just got over the app digest against the
+	// already stored pubkey
+	if (crypto_ed25519_check(ctx->app_signature, metadata.pubkey,
+				 ctx->app_digest, 32) != 0) {
 		return -1;
 	}
 
