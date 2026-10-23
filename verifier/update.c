@@ -10,6 +10,7 @@
 #include <tkey/syscall.h>
 #include <tkey/tk1_mem.h>
 
+#include "mac.h"
 #include "update.h"
 
 #define MIN(a, b) ((a) <= (b) ? (a) : (b))
@@ -35,9 +36,15 @@ int update_init(struct update_ctx *ctx, size_t app_size, uint8_t app_digest[32],
 		return -1;
 	}
 
+	if (!mac_verify(&metadata)) {
+		return -1;
+	}
+
 	metadata.size = 0;
 	memset(metadata.digest, 0x00, sizeof(metadata.digest));
 	memset(metadata.signature, 0x00, sizeof(metadata.signature));
+
+	mac_calc(&metadata, metadata.mac);
 
 	return sys_preload_delete(&metadata);
 }
@@ -70,6 +77,9 @@ int update_finalize(struct update_ctx *ctx)
 		return -1;
 	}
 
+	if (!mac_verify(&metadata)) {
+		return -1;
+	}
 	metadata.size = ctx->upload_size;
 
 	memcpy_s(metadata.digest, sizeof(metadata.digest), ctx->app_digest,
@@ -77,6 +87,8 @@ int update_finalize(struct update_ctx *ctx)
 
 	memcpy_s(metadata.signature, sizeof(metadata.signature),
 		 ctx->app_signature, sizeof(ctx->app_signature));
+
+	mac_calc(&metadata, metadata.mac);
 
 	if (sys_preload_set_metadata(&metadata) != 0) {
 		return -1;

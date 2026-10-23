@@ -11,6 +11,7 @@
 #include <tkey/syscall.h>
 
 #include "app_proto.h"
+#include "mac.h"
 #include "util.h"
 
 void store_pubkey(struct packet pkt)
@@ -34,6 +35,14 @@ void store_pubkey(struct packet pkt)
 	if (sys_preload_get_metadata(&metadata) != 0) {
 		debug_puts("verifier:"
 			   " sys_preload_get_metadata failed\n");
+		rsp[0] = FRAME_STATUS_NOK;
+		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
+		return;
+	}
+
+	if (!mac_verify(&metadata)) {
+		debug_puts("verifier:"
+			   " mac_verify failed\n");
 		rsp[0] = FRAME_STATUS_NOK;
 		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 		return;
@@ -74,6 +83,8 @@ void store_pubkey(struct packet pkt)
 
 	// Signature verified, copy new pubkey
 	memcpy_s(metadata.pubkey, sizeof(metadata.pubkey), p_new_pubkey, 32);
+
+	mac_calc(&metadata, metadata.mac);
 
 	if (sys_preload_set_metadata(&metadata) != 0) {
 		debug_puts("verifier: sys_preload_set_metadata failed\n");

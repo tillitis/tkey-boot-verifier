@@ -186,6 +186,10 @@ The boot verifier app fetches (from the filesystem or from the client):
 - an app digest for app[n+1]
 - signature(app[n+1] digest)
 
+When these variables are fetched from the filesystem they are verified
+with a MAC, to prove authenticity of the stored data in flash. It is
+the boot-verifier responsibility to both calculate and verify the MAC.
+
 If the signature verifies against the public key, it does a
 `sys_reset()` system call with `seed` computed like this:
 
