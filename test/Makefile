@@ -29,6 +29,7 @@ TEST_CFILES= \
 	lib/cmocka/src/cmocka.o \
 	platform/assert_halt.c \
 	platform/fakesys.c \
+	platform/fakemac.c \
 	$(LIBDIR)/libcommon/lib.c \
 	$(LIBDIR)/monocypher/monocypher.c \
 	$(LIBDIR)/monocypher/monocypher-ed25519.c \
