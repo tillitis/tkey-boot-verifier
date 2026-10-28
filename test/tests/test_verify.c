@@ -62,17 +62,15 @@ int __wrap_sys_reset(struct reset *rst, size_t len)
 
 static void test_reset_if_verified_w_valid_signature(void **state)
 {
-	uint8_t signature[64];
-	uint8_t pubkey[32];
-	uint8_t digest[32];
+	struct app_metadata metadata = {0};
 	uint8_t pubkey_digest[32];
 
-	memcpy(signature, SIGNATURE, sizeof(signature));
-	memcpy(pubkey, PUBKEY, sizeof(pubkey));
-	memcpy(digest, APP_DIGEST, sizeof(digest));
+	memcpy(metadata.signature, SIGNATURE, sizeof(metadata.signature));
+	memcpy(metadata.pubkey, PUBKEY, sizeof(metadata.pubkey));
+	memcpy(metadata.digest, APP_DIGEST, sizeof(metadata.digest));
 	memcpy(pubkey_digest, PUBKEY_DIGEST, sizeof(pubkey_digest));
 
-	fakesys_preload_set_metadata(digest, signature, pubkey);
+	fakesys_preload_set_metadata(&metadata);
 
 	struct reset expected_reset = {0};
 	expected_reset.type = START_FLASH1_VER;
@@ -88,25 +86,25 @@ static void test_reset_if_verified_w_valid_signature(void **state)
 	expect_memory(__wrap_sys_reset, rst, &expected_reset,
 		      sizeof(expected_reset));
 
-	reset_if_verified(pubkey, START_FLASH1_VER, digest, signature);
+	reset_if_verified(metadata.pubkey, START_FLASH1_VER, metadata.digest,
+			  metadata.signature);
 }
 
 static void test_reset_if_verified_w_invalid_signature(void **state)
 {
-	uint8_t signature[64];
-	uint8_t pubkey[32];
-	uint8_t digest[32];
+	struct app_metadata metadata = {0};
 
-	memcpy(signature, INVALID_SIGNATURE, sizeof(signature));
-	memcpy(pubkey, PUBKEY, sizeof(pubkey));
-	memcpy(digest, APP_DIGEST, sizeof(digest));
+	memcpy(metadata.signature, INVALID_SIGNATURE,
+	       sizeof(metadata.signature));
+	memcpy(metadata.pubkey, PUBKEY, sizeof(metadata.pubkey));
+	memcpy(metadata.digest, APP_DIGEST, sizeof(metadata.digest));
 
-	fakesys_preload_set_metadata(digest, signature, pubkey);
+	fakesys_preload_set_metadata(&metadata);
 
 	// expect_function_calls(__wrap_sys_reset, 0); // Unsupported by cmocka
 
-	int ret =
-	    reset_if_verified(pubkey, START_FLASH1_VER, digest, signature);
+	int ret = reset_if_verified(metadata.pubkey, START_FLASH1_VER,
+				    metadata.digest, metadata.signature);
 
 	assert_int_equal(ret, -1);
 }
