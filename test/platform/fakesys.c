@@ -17,40 +17,46 @@
 #define APP_SLOT_1_SIZE (128 * 1024)
 
 struct state {
-	uint8_t digest[32];
-	uint8_t signature[64];
-	uint8_t pubkey[32];
-	uint32_t app_size;
+	struct app_metadata metadata;
 	uint8_t app[APP_SLOT_1_SIZE];
 };
 
 struct state state = {0};
 
-int sys_preload_get_metadata(uint8_t digest[32], uint8_t signature[64],
-			     uint8_t pubkey[32])
+int sys_preload_get_metadata(struct app_metadata *metadata)
 {
-	memcpy(digest, state.digest, sizeof(state.digest));
-	memcpy(signature, state.signature, sizeof(state.signature));
-	memcpy(pubkey, state.pubkey, sizeof(state.pubkey));
+	memcpy(&metadata->size, &state.metadata.size,
+	       sizeof(state.metadata.size));
+	memcpy(metadata->digest, state.metadata.digest,
+	       sizeof(state.metadata.digest));
+	memcpy(metadata->signature, state.metadata.signature,
+	       sizeof(state.metadata.signature));
+	memcpy(metadata->pubkey, state.metadata.pubkey,
+	       sizeof(state.metadata.pubkey));
 
 	return 0;
 }
 
-void fakesys_preload_set_metadata(uint8_t digest[32], uint8_t signature[64],
-				  uint8_t pubkey[32])
+void fakesys_preload_set_metadata(struct app_metadata *metadata)
+
 {
-	memcpy(state.digest, digest, sizeof(state.digest));
-	memcpy(state.signature, signature, sizeof(state.signature));
-	memcpy(state.pubkey, pubkey, sizeof(state.pubkey));
+	memcpy(&state.metadata.size, &metadata->size,
+	       sizeof(state.metadata.size));
+	memcpy(state.metadata.digest, metadata->digest,
+	       sizeof(state.metadata.digest));
+	memcpy(state.metadata.signature, metadata->signature,
+	       sizeof(state.metadata.signature));
+	memcpy(state.metadata.pubkey, metadata->pubkey,
+	       sizeof(state.metadata.pubkey));
 }
 
-int sys_preload_delete(void)
+int sys_preload_delete(struct app_metadata *metadata)
 {
-	uint8_t digest[32] = {0};
-	uint8_t signature[64] = {0};
 
-	state.app_size = 0;
-	fakesys_preload_set_metadata(digest, signature, state.pubkey);
+	metadata->size = 0;
+	memset(metadata->digest, 0, sizeof(metadata->digest));
+	memset(metadata->signature, 0, sizeof(metadata->signature));
+	fakesys_preload_set_metadata(metadata);
 	memset(state.app, 0xff, sizeof(state.app));
 
 	return 0;
@@ -82,23 +88,22 @@ int sys_preload_store(uint32_t offset, void *app, size_t len)
 	return 0;
 }
 
-int sys_preload_store_fin(size_t len, uint8_t digest[32], uint8_t signature[64])
+int sys_preload_set_metadata(struct app_metadata *metadata)
 {
-	if (len == 0 || len > sizeof(state.app)) {
+	if (metadata->size == 0 || metadata->size > sizeof(state.app)) {
 		return -1;
 	}
 
-	fakesys_preload_set_metadata(digest, signature, state.pubkey);
-	state.app_size = len;
+	fakesys_preload_set_metadata(metadata);
 
 	return 0;
 }
 
 void fakesys_preload_erase(void)
 {
-	memset(state.digest, 0, sizeof(state.digest));
-	memset(state.signature, 0, sizeof(state.signature));
-	state.app_size = 0;
+	memset(state.metadata.digest, 0, sizeof(state.metadata.digest));
+	memset(state.metadata.signature, 0, sizeof(state.metadata.signature));
+	state.metadata.size = 0;
 	memset(state.app, 0xff, sizeof(state.app));
 }
 

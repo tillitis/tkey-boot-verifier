@@ -51,7 +51,8 @@ tests/test_update: $(TEST_UPDATE_CFILES) Makefile
 TEST_UPDATE_ORDER_CFILES = tests/test_update_order.c $(TEST_CFILES) $(APPDIR)/update.c
 tests/test_update_order: LDFLAGS += -Wl,--wrap=sys_preload_delete
 tests/test_update_order: LDFLAGS += -Wl,--wrap=sys_preload_store
-tests/test_update_order: LDFLAGS += -Wl,--wrap=sys_preload_store_fin
+tests/test_update_order: LDFLAGS += -Wl,--wrap=sys_preload_set_metadata
+tests/test_update_order: LDFLAGS += -Wl,--wrap=sys_preload_get_metadata
 tests/test_update_order: $(TEST_UPDATE_ORDER_CFILES) Makefile
 	$(CC) $(CFLAGS) $(TEST_UPDATE_ORDER_CFILES) $(LDFLAGS) -o $@
 

@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "../../verifier/update.h"
+#include <tkey/syscall.h>
 
 static void test_update_should_call_sys_preload_delete_first(void **state);
 
@@ -38,10 +39,12 @@ static void test_update_should_call_sys_preload_delete_first(void **state)
 	uint8_t app_signature[64] = {0};
 	struct update_ctx ctx = {0};
 
+	expect_function_call(__wrap_sys_preload_get_metadata);
 	expect_function_call(__wrap_sys_preload_delete);
 	expect_function_call(__wrap_sys_preload_store);
 	expect_function_call(__wrap_sys_preload_store);
-	expect_function_call(__wrap_sys_preload_store_fin);
+	expect_function_call(__wrap_sys_preload_get_metadata);
+	expect_function_call(__wrap_sys_preload_set_metadata);
 
 	update_init(&ctx, app_size, app_digest, app_signature);
 	update_write(&ctx, app_buf, write_size);
@@ -49,7 +52,7 @@ static void test_update_should_call_sys_preload_delete_first(void **state)
 	update_finalize(&ctx);
 }
 
-int __wrap_sys_preload_delete(void)
+int __wrap_sys_preload_delete(struct app_metadata *metadata)
 {
 	function_called();
 
@@ -63,8 +66,14 @@ int __wrap_sys_preload_store(uint32_t offset, void *app, size_t len)
 	return 0;
 }
 
-int __wrap_sys_preload_store_fin(size_t len, uint8_t digest[32],
-				 uint8_t signature[64])
+int __wrap_sys_preload_set_metadata(struct app_metadata *metadata)
+{
+	function_called();
+
+	return 0;
+}
+
+int __wrap_sys_preload_get_metadata(struct app_metadata *metadata)
 {
 	function_called();
 
