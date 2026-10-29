@@ -104,6 +104,14 @@ int sys_preload_set_metadata(struct app_metadata *metadata)
 	return 0;
 }
 
+void fakesys_set_app(uint8_t *app, size_t app_size,
+		     struct app_metadata *metadata)
+{
+
+	memcpy(state.app, app, app_size);
+	fakesys_preload_set_metadata(metadata);
+}
+
 void fakesys_preload_erase(void)
 {
 	memset(state.metadata.digest, 0, sizeof(state.metadata.digest));
