@@ -9,6 +9,7 @@
 #include <tkey/syscall.h>
 
 #include "app_proto.h"
+#include "libsodium_crypto_core_ed25519.h"
 #include "util.h"
 
 void store_pubkey(struct packet pkt)
@@ -64,6 +65,15 @@ void store_pubkey(struct packet pkt)
 	// pubkey
 	if (crypto_ed25519_check(&pkt.cmd[33], pubkey, digest, 32) != 0) {
 		debug_puts("verifier: signature verification failed\n");
+		rsp[0] = FRAME_STATUS_NOK;
+		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
+		return;
+	}
+
+	// Check that the new pubkey (pkt.cmd[1]) represents a
+	// valid point on the Ed25519 elliptic curve
+	if (crypto_core_ed25519_is_valid_point(&pkt.cmd[1]) != 1) {
+		debug_puts("verifier: pubkey validation failed\n");
 		rsp[0] = FRAME_STATUS_NOK;
 		appreply(pkt.hdr, CMD_STORE_PUBKEY, rsp);
 		return;
