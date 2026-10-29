@@ -12,10 +12,12 @@ OBJCOPY ?= llvm-objcopy
 
 P := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 LIBDIR ?= $(P)/tkey-libs
+LIBSODIUMDIR ?= $(P)/crypto/libsodium
 
 CC = clang
 
 INCLUDE = $(LIBDIR)/include
+LIBSODIUMINC = $(LIBSODIUMDIR)/inc
 
 # If you want libcommon's debug_puts() et cetera to output something
 # on the QEMU debug port, use -DQEMU_DEBUG, or -DTKEY_DEBUG if you
@@ -24,7 +26,7 @@ CFLAGS = -target riscv32-unknown-none-elf -march=rv32iczmmul -mabi=ilp32 -mcmode
    -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf \
    -fno-builtin-putchar -nostdlib -mno-relax -flto -g \
    -Wall -Werror=implicit-function-declaration \
-   -I $(INCLUDE) -I $(LIBDIR) $(EXTRA_CFLAGS) #-DTKEY_DEBUG #-DQEMU_DEBUG
+   -I $(INCLUDE) -I $(LIBDIR) -I $(LIBSODIUMINC) $(EXTRA_CFLAGS) #-DTKEY_DEBUG #-DQEMU_DEBUG
 
 AS = clang
 ASFLAGS = -target riscv32-unknown-none-elf -march=rv32iczmmul -mabi=ilp32 -mcmodel=medany -mno-relax
@@ -97,11 +99,21 @@ testapp-probe:
 	go build -trimpath -buildvcs=false ./cmd/testapp-probe
 
 # Simple ed25519 verifier app
-VERIFIEROBJS=verifier/main.o verifier/verify.o verifier/app_proto.o \
-    verifier/update.o verifier/pubkey.o verifier/util.o
+VERIFIEROBJS = \
+    verifier/main.o \
+    verifier/verify.o \
+    verifier/app_proto.o \
+    verifier/update.o \
+    verifier/pubkey.o \
+    verifier/util.o
 
-verifier/app.elf: $(VERIFIEROBJS)
-	$(CC) $(CFLAGS) $(VERIFIEROBJS) $(LDFLAGS) -I $(LIBDIR) -o $@
+LIBSODIUMOBJS = \
+    $(LIBSODIUMDIR)/src/libsodium_core_ed25519.o \
+    $(LIBSODIUMDIR)/src/libsodium_ed25519_ref10.o \
+    $(LIBSODIUMDIR)/src/libsodium_utils.o
+
+verifier/app.elf: $(VERIFIEROBJS) $(LIBSODIUMOBJS)
+	$(CC) $(CFLAGS) $(VERIFIEROBJS) $(LIBSODIUMOBJS) $(LDFLAGS) -I $(LIBDIR) -o $@
 $(VERIFIEROBJS): $(INCLUDE)/tkey/tk1_mem.h verifier/bv_nad.h verifier/app_proto.h \
 	verifier/pubkey.h verifier/update.h verifier/util.h verifier/verify.h
 
@@ -130,7 +142,7 @@ dev-seed.1:
 .PHONY: clean
 clean:
 	rm -f sign-tool
-	rm -f tkey-mgt verifier/app.bin verifier/app.elf $(VERIFIEROBJS)
+	rm -f tkey-mgt verifier/app.bin verifier/app.elf $(VERIFIEROBJS) $(LIBSODIUMOBJS)
 	rm -f cmd/tkey-mgt/verifier.bin
 	make -C tkey-libs clean
 	make -C test clean
