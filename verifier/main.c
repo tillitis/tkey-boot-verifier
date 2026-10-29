@@ -17,6 +17,7 @@
 
 #include "app_proto.h"
 #include "bv_nad.h"
+#include "libsodium_crypto_core_ed25519.h"
 #include "pubkey.h"
 #include "update.h"
 #include "util.h"
@@ -305,6 +306,15 @@ enum state wait_for_command(enum state state, struct context *ctx)
 	case CMD_SET_PUBKEY:
 		if (pkt.hdr.len != 128) {
 			// Bad length
+			assert(1 == 2);
+		}
+
+		// Check that the supplied pubkey (pkt.cmd[1]) represents a
+		// valid point on the Ed25519 elliptic curve
+		if (crypto_core_ed25519_is_valid_point(&pkt.cmd[1]) != 1) {
+			debug_puts("verifier: pubkey validation failed\n");
+			rsp[0] = FRAME_STATUS_NOK;
+			appreply(pkt.hdr, CMD_SET_PUBKEY, rsp);
 			assert(1 == 2);
 		}
 

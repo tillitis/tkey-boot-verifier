@@ -7,6 +7,7 @@
 compile_commands.json
 dev-seed
 dev-seed.1
+crypto/libsodium/src/*.o
 testapp/*.o
 testapp/app_a.bin
 testapp/app_a.bin.sig
