@@ -49,20 +49,20 @@ func reconnect(tk *tkeyclient.TillitisKey) error {
 }
 
 func userConfirm() bool {
-        fmt.Printf("\nAny data stored by the app(s) will be erased and cannot be restored.")
+	fmt.Printf("\nAny data stored by the app(s) will be erased and cannot be restored.")
 
-        fmt.Printf("\nAre you sure? Press y to continue or anything else to abort.\n")
+	fmt.Printf("\nAre you sure? Press y to continue or anything else to abort.\n")
 
-        reader := bufio.NewReader(os.Stdin)
-        input, _ := reader.ReadString('\n')
+	reader := bufio.NewReader(os.Stdin)
+	input, _ := reader.ReadString('\n')
 
-        // Trim whitespace to remove any remaining Windows line ending
-        input = strings.TrimSpace(input)
+	// Trim whitespace to remove any remaining Windows line ending
+	input = strings.TrimSpace(input)
 
-        if input != "y" {
-                return false
-        }
-        return true
+	if input != "y" {
+		return false
+	}
+	return true
 }
 
 func eraseAll(tk *tkeyclient.TillitisKey) error {
