@@ -49,6 +49,8 @@ all: \
     testapp/app_b.bin.sig.1 \
     testapp/pubkey \
     testapp/pubkey.1 \
+    testapp/pubkey.1.bin.sig \
+    testapp/pubkey.bin.sig.1 \
 
 .PHONY: tkey-libs
 tkey-libs:
@@ -130,10 +132,14 @@ testapp/%.bin.sig: testapp/%.bin sign-tool dev-seed
 	./sign-tool -m $< -s dev-seed -o $@
 testapp/pubkey: sign-tool dev-seed
 	./sign-tool -p $@ -s dev-seed
+testapp/pubkey.bin: sign-tool dev-seed
+	./sign-tool -P $@ -s dev-seed
 testapp/%.bin.sig.1: testapp/%.bin sign-tool dev-seed.1
 	./sign-tool -m $< -s dev-seed.1 -o $@
 testapp/pubkey.1: sign-tool dev-seed.1
 	./sign-tool -p $@ -s dev-seed.1
+testapp/pubkey.1.bin: sign-tool dev-seed.1
+	./sign-tool -P $@ -s dev-seed.1
 
 dev-seed:
 	echo "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f" > $@
@@ -157,8 +163,12 @@ clean:
 	rm -f testapp/app_b.bin.sig
 	rm -f testapp/app_b.bin.sig.1
 	rm -f testapp/app_b.elf
-	rm -f testapp/pubkey \
-	rm -f testapp/pubkey.1 \
+	rm -f testapp/pubkey
+	rm -f testapp/pubkey.bin
+	rm -f testapp/pubkey.bin.sig.1
+	rm -f testapp/pubkey.1
+	rm -f testapp/pubkey.1.bin
+	rm -f testapp/pubkey.1.bin.sig
 	rm -f testapp-probe
 	rm -f dev-seed
 	rm -f dev-seed1
