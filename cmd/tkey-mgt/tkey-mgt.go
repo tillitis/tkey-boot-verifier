@@ -249,6 +249,12 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) er
 		return err
 	}
 
+	// Wait until closed to make sure the reset command was delivered before the program exits
+	err = tk.WaitClosed()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
