@@ -434,6 +434,11 @@ int main(void)
 {
 	led_indicate_busy(APP_LED_COLOR);
 
+#if defined(TKEY_DEBUG)
+	config_endpoints(IO_DEBUG);
+	// If we don't wait here the first debug messages will be dropped
+	timer_wait(1);
+#endif
 	debug_puts("verifier");
 	debug_lf();
 
@@ -466,7 +471,12 @@ int main(void)
 		}
 
 		case STATE_INIT_WAIT_FOR_COMMAND:
+#if defined(TKEY_DEBUG)
+			config_endpoints(IO_CDC | IO_DEBUG);
+#else
+
 			config_endpoints(IO_CDC);
+#endif
 			state = STATE_WAIT_FOR_COMMAND;
 			break;
 
