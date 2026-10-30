@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <string.h>
 #include <tkey/assert.h>
 #include <tkey/debug.h>
@@ -9,6 +10,7 @@
 #include <tkey/syscall.h>
 #include <tkey/tk1_mem.h>
 
+#include "mac.h"
 #include "update.h"
 
 #define MIN(a, b) ((a) <= (b) ? (a) : (b))
@@ -28,7 +30,23 @@ int update_init(struct update_ctx *ctx, size_t app_size, uint8_t app_digest[32],
 	memcpy(ctx->app_digest, app_digest, sizeof(ctx->app_digest));
 	memcpy(ctx->app_signature, app_signature, sizeof(ctx->app_signature));
 
-	return sys_preload_delete();
+	struct app_metadata metadata = {0};
+
+	if (sys_preload_get_metadata(&metadata) != 0) {
+		return -1;
+	}
+
+	if (!mac_verify(&metadata)) {
+		return -1;
+	}
+
+	metadata.size = 0;
+	memset(metadata.digest, 0x00, sizeof(metadata.digest));
+	memset(metadata.signature, 0x00, sizeof(metadata.signature));
+
+	mac_calc(&metadata, metadata.mac);
+
+	return sys_preload_delete(&metadata);
 }
 
 int update_write(struct update_ctx *ctx, uint8_t *data, size_t data_len)
@@ -52,14 +70,35 @@ bool update_app_is_written(struct update_ctx *ctx)
 
 int update_finalize(struct update_ctx *ctx)
 {
-	if (sys_preload_store_fin(ctx->upload_size, ctx->app_digest,
-				  ctx->app_signature) != 0) {
+
+	struct app_metadata metadata = {0};
+
+	if (sys_preload_get_metadata(&metadata) != 0) {
+		return -1;
+	}
+
+	if (!mac_verify(&metadata)) {
+		return -1;
+	}
+	metadata.size = ctx->upload_size;
+
+	memcpy_s(metadata.digest, sizeof(metadata.digest), ctx->app_digest,
+		 sizeof(ctx->app_digest));
+
+	memcpy_s(metadata.signature, sizeof(metadata.signature),
+		 ctx->app_signature, sizeof(ctx->app_signature));
+
+	mac_calc(&metadata, metadata.mac);
+
+	if (sys_preload_set_metadata(&metadata) != 0) {
 		return -1;
 	}
 
 	ctx->upload_size = 0;
 	memset(ctx->app_digest, 0, sizeof(ctx->app_digest));
 	memset(ctx->app_signature, 0, sizeof(ctx->app_signature));
+
+	memset(&metadata, 0, sizeof(metadata));
 
 	return 0;
 }

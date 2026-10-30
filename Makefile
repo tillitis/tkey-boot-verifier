@@ -98,12 +98,13 @@ testapp-probe:
 
 # Simple ed25519 verifier app
 VERIFIEROBJS=verifier/main.o verifier/verify.o verifier/app_proto.o \
-    verifier/update.o verifier/pubkey.o verifier/util.o
+    verifier/update.o verifier/pubkey.o verifier/util.o verifier/mac.o
 
 verifier/app.elf: $(VERIFIEROBJS)
 	$(CC) $(CFLAGS) $(VERIFIEROBJS) $(LDFLAGS) -I $(LIBDIR) -o $@
-$(VERIFIEROBJS): $(INCLUDE)/tkey/tk1_mem.h verifier/bv_nad.h verifier/app_proto.h \
-	verifier/pubkey.h verifier/update.h verifier/util.h verifier/verify.h
+$(VERIFIEROBJS): $(INCLUDE)/tkey/tk1_mem.h verifier/app_proto.h \
+	verifier/bv_nad.h verifier/mac.h verifier/pubkey.h verifier/update.h \
+	verifier/util.h verifier/verify.h
 
 TESTAPPOBJS=testapp/main.o testapp/app_proto.o
 testapp/app_a.elf: $(TESTAPPOBJS) testapp/app_a.c
