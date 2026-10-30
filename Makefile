@@ -47,6 +47,8 @@ all: \
     testapp/app_b.bin.sig.1 \
     testapp/pubkey \
     testapp/pubkey.1 \
+    testapp/pubkey.1.sig \
+    testapp/pubkey.sig.1 \
 
 .PHONY: tkey-libs
 tkey-libs:
@@ -112,11 +114,11 @@ testapp/app_b.elf: $(TESTAPPOBJS) testapp/app_b.c
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -I $(LIBDIR) -o $@
 $(TESTAPPOBJS): $(INCLUDE)/tkey/tk1_mem.h verifier/bv_nad.h
 
-testapp/%.bin.sig: testapp/%.bin sign-tool dev-seed
+testapp/%.sig: testapp/% sign-tool dev-seed
 	./sign-tool -m $< -s dev-seed -o $@
 testapp/pubkey: sign-tool dev-seed
 	./sign-tool -p $@ -s dev-seed
-testapp/%.bin.sig.1: testapp/%.bin sign-tool dev-seed.1
+testapp/%.sig.1: testapp/% sign-tool dev-seed.1
 	./sign-tool -m $< -s dev-seed.1 -o $@
 testapp/pubkey.1: sign-tool dev-seed.1
 	./sign-tool -p $@ -s dev-seed.1
@@ -143,8 +145,10 @@ clean:
 	rm -f testapp/app_b.bin.sig
 	rm -f testapp/app_b.bin.sig.1
 	rm -f testapp/app_b.elf
-	rm -f testapp/pubkey \
-	rm -f testapp/pubkey.1 \
+	rm -f testapp/pubkey
+	rm -f testapp/pubkey.sig.1
+	rm -f testapp/pubkey.1
+	rm -f testapp/pubkey.1.sig
 	rm -f testapp-probe
 	rm -f dev-seed
 	rm -f dev-seed1
