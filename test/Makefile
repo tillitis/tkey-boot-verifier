@@ -35,10 +35,11 @@ TEST_CFILES= \
 	$(LIBDIR)/monocypher/monocypher-ed25519.c \
 	$(LIBDIR)/blake2s/blake2s.c
 
-all: tests/test_mac tests/test_update tests/test_update_order tests/test_verify 
+all: tests/test_mac tests/test_pubkey tests/test_update tests/test_update_order tests/test_verify
 
-test: tests/test_mac tests/test_update tests/test_update_order tests/test_verify
+test: tests/test_mac tests/test_pubkey tests/test_update tests/test_update_order tests/test_verify
 	./tests/test_mac
+	./tests/test_pubkey
 	./tests/test_update
 	./tests/test_update_order
 	./tests/test_verify
@@ -72,6 +73,22 @@ TEST_MAC_CFILES = lib/cmocka/src/cmocka.o \
 tests/test_mac: $(TEST_MAC_CFILES) Makefile
 	$(CC) $(CFLAGS) $(TEST_MAC_CFILES) $(LDFLAGS) -o $@
 
+LIBSODIUMDIR= ../crypto/libsodium
+
+TEST_PUBKEY_CFILES = \
+			tests/test_pubkey.c \
+			$(LIBSODIUMDIR)/src/libsodium_core_ed25519.c \
+			$(LIBSODIUMDIR)/src/libsodium_ed25519_ref10.c \
+			$(LIBSODIUMDIR)/src/libsodium_utils.c \
+			$(TEST_CFILES) \
+			$(APPDIR)/pubkey.c
+
+tests/test_pubkey: LDFLAGS += -Wl,--wrap=sys_preload_set_metadata
+tests/test_pubkey: LDFLAGS += -Wl,--wrap=user_is_present
+tests/test_pubkey: LDFLAGS += -Wl,--wrap=appreply
+tests/test_pubkey: $(TEST_PUBKEY_CFILES) Makefile
+	$(CC) $(CFLAGS) $(TEST_PUBKEY_CFILES) $(LDFLAGS) -I $(LIBSODIUMDIR)/inc -o $@
+
 FMTFILES=tests/*.[ch] platform/*.[ch] utils/*.[ch]
 .PHONY: fmt
 fmt:
@@ -84,6 +101,7 @@ checkfmt:
 .PHONY: clean
 clean:
 	rm -f tests/test_mac
+	rm -f tests/test_pubkey
 	rm -f tests/test_update
 	rm -f tests/test_update_order
 	rm -f tests/test_verify
