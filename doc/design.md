@@ -263,3 +263,17 @@ flowchart TD
 This is slightly simplified. Castor requires the client to tell the
 already running device app, typically FIDO2, to reset to firmware
 "load from client" to even start this process.
+
+## Public key requirements
+
+To change the vendor public key stored in flash, certain requirements
+must be fulfilled.
+
+The new public key must meet the following criteria:
+
+- Has a canonical encoding
+- Is not a small-order point
+- Decodes to a point that is on the curve
+- Lies in the main (prime-order) subgroup
+
+See README.md for information on how to install a new public key.
