@@ -185,8 +185,11 @@ static enum state verify_flash(void)
 		assert(1 == 2);
 	}
 
-	reset_if_verified(metadata.pubkey, START_FLASH1_VER, metadata.digest,
-			  metadata.signature);
+	// Do we have an app to start?
+	if (metadata.size != 0) {
+		reset_if_verified(metadata.pubkey, START_FLASH1_VER,
+				  metadata.digest, metadata.signature);
+	}
 
 	signal_issue();
 
