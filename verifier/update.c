@@ -47,7 +47,7 @@ int update_init(struct update_ctx *ctx, size_t app_size, uint8_t app_digest[32],
 	// Verify the signature before moving on
 
 	// Build the message:
-	// app digest || name || installable
+	// app digest || name || installable: true
 	uint8_t msg[32 + 16 + 2] = {0};
 	memcpy(msg, app_digest, 32);
 	memcpy(&msg[32], app_name, 16);
