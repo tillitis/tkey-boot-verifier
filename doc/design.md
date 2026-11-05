@@ -112,13 +112,13 @@ Quick reminder of how the TKey (Castor version) works:
      app[n-1] is the CDI of the boot verifier itself.
 
      The seed can be whatever the caller wants to include in the
-     measurement, typically a digest of its trust policy, for example
+     measurement, typically a digest of its security policy, for example
      a vendor public key.
 
      Note that the caller's CDI, outside of the caller's control, is
      always included in the computation by the firmware. This means
      the entire program and its behaviour is, in a way, also a
-     measured trust policy. Change the boot verifier and you change
+     measured security policy. Change the boot verifier and you change
      the resulting ID.
 
      This creates a chain from parent to child, back to the integrity
@@ -168,7 +168,7 @@ sequenceDiagram
     Firmware->>First Stage App: CDI
     First Stage App->>First Stage App: Fetch(vendor_pubkey, vendor_signature, app_digest)
     First Stage App->>First Stage App: Verify(vendor_signature, app_digest)
-    First Stage App->>First Stage App: seed = blakes2(vendor_pubkey)
+    First Stage App->>First Stage App: seed = blakes2(vendor_pubkey || name)
     destroy First Stage App
     First Stage App->>Firmware: seed, second_stage_app_digest
     Firmware->>Firmware: measured_id = blake2s(K = CDI, d = seed)
@@ -180,21 +180,23 @@ sequenceDiagram
     Firmware->>Second Stage App: CDI
 ```
 
-The boot verifier app fetches (from the filesystem or from the client):
+The boot verifier fetches app metadata (from the filesystem or from the client):
 
 - a vendor public key
 - an app digest for app[n+1]
 - signature(app[n+1] digest)
+- an app name for app[n+1]
 
 When these variables are fetched from the filesystem they are verified
 with a MAC, to prove authenticity of the stored data in flash. It is
 the boot-verifier responsibility to both calculate and verify the MAC.
 
 If the signature verifies against the public key, it does a
-`sys_reset()` system call with `seed` computed like this:
+`sys_reset()` system call with `seed` computed according to its
+security policy:
 
 ```
-seed = blake2s(vendor_pubkey)
+seed = blake2s(vendor_pubkey || name)
 ```
 
 When the boot verifier asks for a reset, the firmware measures this
