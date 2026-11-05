@@ -31,6 +31,8 @@ int sys_preload_get_metadata(struct app_metadata *metadata)
 	       sizeof(state.metadata.digest));
 	memcpy(metadata->signature, state.metadata.signature,
 	       sizeof(state.metadata.signature));
+	memcpy(metadata->name, state.metadata.name,
+	       sizeof(state.metadata.name));
 	memcpy(metadata->pubkey, state.metadata.pubkey,
 	       sizeof(state.metadata.pubkey));
 	memcpy(metadata->mac, state.metadata.mac, sizeof(state.metadata.mac));
@@ -46,6 +48,8 @@ void fakesys_preload_set_metadata(struct app_metadata *metadata)
 	       sizeof(state.metadata.digest));
 	memcpy(state.metadata.signature, metadata->signature,
 	       sizeof(state.metadata.signature));
+	memcpy(state.metadata.name, metadata->name,
+	       sizeof(state.metadata.name));
 	memcpy(state.metadata.pubkey, metadata->pubkey,
 	       sizeof(state.metadata.pubkey));
 	memcpy(state.metadata.mac, metadata->mac, sizeof(state.metadata.mac));
@@ -103,6 +107,7 @@ void fakesys_preload_erase(void)
 {
 	memset(state.metadata.digest, 0, sizeof(state.metadata.digest));
 	memset(state.metadata.signature, 0, sizeof(state.metadata.signature));
+	memset(state.metadata.name, 0, sizeof(state.metadata.name));
 	state.metadata.size = 0;
 
 	memset(state.app, 0xff, sizeof(state.app));
