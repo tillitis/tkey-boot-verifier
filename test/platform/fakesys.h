@@ -16,4 +16,5 @@ bool fakesys_preload_range_contains_ff(uint32_t start, uint32_t stop);
 bool fakesys_preload_range_contains_data(uint32_t offset, void *data,
 					 size_t data_len);
 
+bool fakesys_preload_contains_pubkey(const uint8_t *expected_pubkey);
 #endif

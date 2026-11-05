@@ -108,6 +108,12 @@ void fakesys_preload_erase(void)
 	memset(state.app, 0xff, sizeof(state.app));
 }
 
+bool fakesys_preload_contains_pubkey(const uint8_t *expected_pubkey)
+{
+	int ret = memcmp(expected_pubkey, state.metadata.pubkey, 32);
+	return ret == 0 ? true : false;
+}
+
 bool fakesys_preload_range_contains_ff(uint32_t start, uint32_t stop)
 {
 	if (start == stop) {
