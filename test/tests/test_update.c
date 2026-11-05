@@ -22,6 +22,7 @@ static void test_write_app_should_fail_when_app_is_too_large(void **state);
 static void test_update_can_update_app(void **state);
 static void test_update_should_fail_w_invalid_signature(void **state);
 static void test_update_should_fail_on_invalid_size_input(void **state);
+static void test_update_should_not_clear_pubkey(void **state);
 
 int main(void)
 {
@@ -29,6 +30,7 @@ int main(void)
 	    cmocka_unit_test(test_update_can_update_app),
 	    cmocka_unit_test(test_update_should_fail_w_invalid_signature),
 	    cmocka_unit_test(test_update_should_fail_on_invalid_size_input),
+	    cmocka_unit_test(test_update_should_not_clear_pubkey),
 	    cmocka_unit_test(test_write_app_can_write_app_to_erased_slot),
 	    cmocka_unit_test(test_write_app_should_only_write_app),
 	    cmocka_unit_test(test_write_app_should_fail_when_app_is_too_large),
@@ -167,6 +169,25 @@ static void test_update_should_fail_on_invalid_size_input(void **state)
 		ret = update_init(&ctx, test->len, APP_DIGEST, SIGNATURE);
 		assert_int_equal(ret, -1);
 	}
+}
+
+static void test_update_should_not_clear_pubkey(void **state)
+{
+	const size_t APP_SIZE = MAX_APP_SIZE;
+
+	// Arrange
+	struct app_metadata metadata = {0};
+	memcpy(metadata.pubkey, PUBKEY, sizeof(PUBKEY));
+	fakesys_preload_set_metadata(&metadata);
+
+	struct update_ctx ctx = {0};
+
+	// Act and assert...
+	int ret = 0;
+	ret = update_init(&ctx, APP_SIZE, APP_DIGEST, SIGNATURE);
+	assert_int_equal(ret, 0);
+
+	assert_true(fakesys_preload_contains_pubkey(PUBKEY));
 }
 
 static void test_write_app_can_write_app_to_erased_slot(void **state)
