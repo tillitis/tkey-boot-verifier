@@ -79,6 +79,7 @@ func main() {
 		signLen := 32
 		copy(msg[:], digest[:])
 		fmt.Printf("Digest: %x\n", msg)
+
 		if *name != "" {
 			byteName := []byte(*name)
 			if len(byteName) > 16 {
@@ -86,15 +87,13 @@ func main() {
 				os.Exit(1)
 			}
 			copy(msg[32:], byteName)
-			signLen += 16
+			signLen += 16 + 2
 			fmt.Printf("Name:   %x\n", byteName)
 		}
 
-		if *installable && *name != "" {
+		if *installable {
 			msg[48] = byte(1)
 			msg[49] = byte(0)
-			signLen += 2
-
 		}
 		fmt.Printf("msg:    %x\n", msg)
 
