@@ -23,6 +23,7 @@ static void test_update_can_update_app(void **state);
 static void test_update_should_fail_w_invalid_signature(void **state);
 static void test_update_should_fail_on_invalid_size_input(void **state);
 static void test_update_should_not_clear_pubkey(void **state);
+static void test_update_should_fail_w_wrong_name(void **state);
 
 int main(void)
 {
@@ -31,6 +32,7 @@ int main(void)
 	    cmocka_unit_test(test_update_should_fail_w_invalid_signature),
 	    cmocka_unit_test(test_update_should_fail_on_invalid_size_input),
 	    cmocka_unit_test(test_update_should_not_clear_pubkey),
+	    cmocka_unit_test(test_update_should_fail_w_wrong_name),
 	    cmocka_unit_test(test_write_app_can_write_app_to_erased_slot),
 	    cmocka_unit_test(test_write_app_should_only_write_app),
 	    cmocka_unit_test(test_write_app_should_fail_when_app_is_too_large),
@@ -44,13 +46,23 @@ int main(void)
 //   000102030405060708090a0b0c0d0e0f
 //   9b62773323ef41a11834824194e55164
 //   d325eb9cdcc10ddda7d10ade4fbd8f6d
+
+// Signature of
+// app: generate_app(dst, dst_size, MAX_APP_SIZE)
+// name: "testing"
+// installable: true
 static uint8_t SIGNATURE[64] = {
-    0x47, 0xE5, 0xD7, 0xD8, 0x46, 0x36, 0x8E, 0x5C, 0x62, 0x35, 0xF2,
-    0xCE, 0x73, 0x11, 0xCB, 0x8B, 0x8F, 0x8D, 0x61, 0xEF, 0x22, 0x87,
-    0x60, 0x62, 0x53, 0xCE, 0xE8, 0xF5, 0x1D, 0xE8, 0x1B, 0x4E, 0x8E,
-    0x81, 0x71, 0xFB, 0xC5, 0x07, 0xD7, 0xAD, 0x4C, 0x88, 0x3D, 0x77,
-    0xB6, 0xBD, 0xED, 0x35, 0xC7, 0xCE, 0x5A, 0x7C, 0xA4, 0x0E, 0x89,
-    0xD2, 0xEB, 0xC1, 0xED, 0x75, 0x06, 0xF6, 0x4C, 0x0E,
+    0x3B, 0x2C, 0x0A, 0xB2, 0xA1, 0xC5, 0xED, 0xFB, 0xDC, 0x7C, 0x7A,
+    0x61, 0x8D, 0xE7, 0x27, 0x03, 0xF8, 0xE4, 0x1C, 0xCB, 0x6B, 0x8F,
+    0x03, 0x21, 0xD3, 0x0D, 0x3F, 0x5F, 0x09, 0xC8, 0xE5, 0x79, 0x0E,
+    0x8A, 0xEE, 0x49, 0x87, 0x90, 0xD6, 0x69, 0x55, 0xB5, 0xCC, 0x9C,
+    0xE9, 0xD4, 0x1B, 0x34, 0x26, 0x4D, 0xCC, 0xEE, 0x42, 0xA4, 0xF4,
+    0xFE, 0x81, 0xB2, 0xB9, 0xF7, 0x1A, 0x09, 0xC0, 0x0A,
+};
+
+static uint8_t APP_NAME[16] = {
+    0x74, 0x65, 0x73, 0x74, 0x69, 0x6E, 0x67, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 static uint8_t INVALID_SIGNATURE[64] = {
     0x00, 0x9f, 0x49, 0x00, 0xf0, 0x93, 0xe9, 0xac, 0xed, 0x94, 0x64,
@@ -111,7 +123,7 @@ static void test_update_can_update_app(void **state)
 
 	// Act and assert...
 	int ret = 0;
-	ret = update_init(&ctx, APP_SIZE, APP_DIGEST, SIGNATURE);
+	ret = update_init(&ctx, APP_SIZE, APP_DIGEST, SIGNATURE, APP_NAME);
 	assert_int_equal(ret, 0);
 	assert_false(update_app_is_written(&ctx));
 
@@ -146,7 +158,26 @@ static void test_update_should_fail_w_invalid_signature(void **state)
 
 	// Act and assert...
 	int ret = 0;
-	ret = update_init(&ctx, APP_SIZE, APP_DIGEST, INVALID_SIGNATURE);
+	ret = update_init(&ctx, APP_SIZE, APP_DIGEST, INVALID_SIGNATURE,
+			  APP_NAME);
+	assert_int_equal(ret, -1);
+}
+
+static void test_update_should_fail_w_wrong_name(void **state)
+{
+	const size_t APP_SIZE = MAX_APP_SIZE;
+
+	// Arrange
+	struct app_metadata metadata = {0};
+	memcpy(metadata.pubkey, PUBKEY, sizeof(PUBKEY));
+	fakesys_preload_set_metadata(&metadata);
+
+	struct update_ctx ctx = {0};
+	uint8_t wrong_name[16] = {0};
+
+	// Act and assert...
+	int ret = 0;
+	ret = update_init(&ctx, APP_SIZE, APP_DIGEST, SIGNATURE, wrong_name);
 	assert_int_equal(ret, -1);
 }
 
@@ -166,7 +197,8 @@ static void test_update_should_fail_on_invalid_size_input(void **state)
 
 		// Act and assert...
 		int ret = 0;
-		ret = update_init(&ctx, test->len, APP_DIGEST, SIGNATURE);
+		ret = update_init(&ctx, test->len, APP_DIGEST, SIGNATURE,
+				  APP_NAME);
 		assert_int_equal(ret, -1);
 	}
 }
@@ -184,7 +216,7 @@ static void test_update_should_not_clear_pubkey(void **state)
 
 	// Act and assert...
 	int ret = 0;
-	ret = update_init(&ctx, APP_SIZE, APP_DIGEST, SIGNATURE);
+	ret = update_init(&ctx, APP_SIZE, APP_DIGEST, SIGNATURE, APP_NAME);
 	assert_int_equal(ret, 0);
 
 	assert_true(fakesys_preload_contains_pubkey(PUBKEY));
