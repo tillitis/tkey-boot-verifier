@@ -13,11 +13,12 @@ struct update_ctx {
 	size_t upload_offset;
 	uint8_t app_digest[32];
 	uint8_t app_signature[64];
+	uint8_t app_name[16];
 };
 
 int write_app(uint32_t addr, uint8_t *data, size_t sz);
 int update_init(struct update_ctx *ctx, size_t app_size, uint8_t app_digest[32],
-		uint8_t app_signature[64]);
+		uint8_t app_signature[64], uint8_t app_name[16]);
 bool update_app_is_written(struct update_ctx *ctx);
 int update_write(struct update_ctx *ctx, uint8_t *data, size_t data_len);
 int update_finalize(struct update_ctx *ctx);

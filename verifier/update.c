@@ -4,6 +4,7 @@
 #include <monocypher/monocypher-ed25519.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <tkey/assert.h>
 #include <tkey/debug.h>
@@ -19,17 +20,19 @@
 const uint32_t WRITE_ALIGN_MASK = (~(WRITE_SIZE - 1));
 
 int update_init(struct update_ctx *ctx, size_t app_size, uint8_t app_digest[32],
-		uint8_t app_signature[64])
+		uint8_t app_signature[64], uint8_t app_name[16])
 {
 	if (app_size == 0 || app_size > TK1_APP_MAX_SIZE) {
 		debug_puts("Invalid app size!\n");
 		return -1;
 	}
 
+	// Clear and set ctx
 	ctx->upload_offset = 0;
 	ctx->upload_size = app_size;
 	memcpy(ctx->app_digest, app_digest, sizeof(ctx->app_digest));
 	memcpy(ctx->app_signature, app_signature, sizeof(ctx->app_signature));
+	memcpy(ctx->app_name, app_name, sizeof(ctx->app_name));
 
 	struct app_metadata metadata = {0};
 
@@ -41,16 +44,26 @@ int update_init(struct update_ctx *ctx, size_t app_size, uint8_t app_digest[32],
 		return -1;
 	}
 
-	// Verify the signature we just got over the app digest against the
-	// already stored pubkey
-	if (crypto_ed25519_check(ctx->app_signature, metadata.pubkey,
-				 ctx->app_digest, 32) != 0) {
+	// Verify the signature before moving on
+
+	// Build the message:
+	// app digest || name || installable
+	uint8_t msg[32 + 16 + 2] = {0};
+	memcpy(msg, app_digest, 32);
+	memcpy(&msg[32], app_name, 16);
+	msg[48] = 0x01;
+
+	// Verify against the already stored pubkey
+	if (crypto_ed25519_check(ctx->app_signature, metadata.pubkey, msg,
+				 sizeof(msg)) != 0) {
 		return -1;
 	}
 
 	metadata.size = 0;
 	memset(metadata.digest, 0x00, sizeof(metadata.digest));
 	memset(metadata.signature, 0x00, sizeof(metadata.signature));
+	memset(metadata.name, 0x00, sizeof(metadata.name));
+	// Pubkey should be left intact
 
 	mac_calc(&metadata, metadata.mac);
 
@@ -100,16 +113,16 @@ int update_finalize(struct update_ctx *ctx)
 	memcpy_s(metadata.signature, sizeof(metadata.signature),
 		 ctx->app_signature, sizeof(ctx->app_signature));
 
+	memcpy_s(metadata.name, sizeof(metadata.name), ctx->app_name,
+		 sizeof(ctx->app_name));
+
 	mac_calc(&metadata, metadata.mac);
 
 	if (sys_preload_set_metadata(&metadata) != 0) {
 		return -1;
 	}
 
-	ctx->upload_size = 0;
-	memset(ctx->app_digest, 0, sizeof(ctx->app_digest));
-	memset(ctx->app_signature, 0, sizeof(ctx->app_signature));
-
+	memset(ctx, 0, sizeof(struct update_ctx));
 	memset(&metadata, 0, sizeof(metadata));
 
 	return 0;
