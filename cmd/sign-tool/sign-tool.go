@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	_ "embed"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -21,6 +22,9 @@ func usage() {
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Sign message in FILE and write the result to FILE.sig (default):\n")
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -m FILE -s seckey [-o SIGFILE]\n\n", os.Args[0])
 
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Sign b2s(b2s(message) || name || flags). Write the result to FILE.json (default):\n")
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -d -m FILE -s seckey [-n name] [-i] [-o SIGFILE]\n\n", os.Args[0])
+
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Write pubkey (in binary form with -P) generated from seckey to FILE.\n")
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -p|P FILE -s seckey\n\n", os.Args[0])
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Write pubkey in binary form from Signify format to FILE.\n")
@@ -29,16 +33,12 @@ func usage() {
 	flag.PrintDefaults()
 }
 
-type signature struct {
-	Alg    [2]byte
-	KeyNum [8]byte
-	Sig    [64]byte
-}
-
-type pubKey struct {
-	Alg    [2]byte
-	KeyNum [8]byte
-	Key    [ed25519.PublicKeySize]byte
+type DistInfo struct {
+	Name        string
+	AppDigest   [32]byte
+	Installable bool
+	Signature   sigfile.Signature
+	PubKey      sigfile.PubKey
 }
 
 func main() {
@@ -47,6 +47,9 @@ func main() {
 	pubkeyPath := flag.String("p", "", "Public key file to read from or write to")
 	binPubkeyPath := flag.String("P", "", "File to write binary pubkey to")
 	seedPath := flag.String("s", "", "File containing private key seed in hex")
+	name := flag.String("n", "", "String of name to include in signature, max 16 bytes")
+	distFlag := flag.Bool("d", false, "Export json file, and use signature of b2s(b2s(app) || name || flags)")
+	installable := flag.Bool("i", false, "Set installable to true in flags")
 	flag.Usage = usage
 
 	flag.Parse()
@@ -56,6 +59,98 @@ func main() {
 	if noFileArgs || tooManyFileArgs {
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	if *distFlag {
+		privateKey, err := readPrivate(*seedPath)
+		if err != nil {
+			fmt.Printf("reading private key: %v", err)
+		}
+
+		message, err := os.ReadFile(*messagePath)
+		if err != nil {
+			fmt.Printf("couldn't read file: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Zero initalised
+		var msg [32 + 16 + 2]byte
+
+		digest := blake2s.Sum256(message)
+		copy(msg[:], digest[:])
+		fmt.Printf("Digest: %x\n", msg)
+
+		distinfo := DistInfo{}
+		copy(distinfo.AppDigest[:], digest[:])
+
+		if *name != "" {
+			byteName := []byte(*name)
+			if len(byteName) > 16 {
+				fmt.Printf("Decode length mismatch: got %d, expected at most 16\n", len(byteName))
+				os.Exit(1)
+			}
+			copy(msg[32:], byteName)
+			fmt.Printf("Name:   %x\n", byteName)
+			distinfo.Name = *name
+
+		}
+
+		if *installable {
+			msg[48] = byte(1)
+			distinfo.Installable = true
+		}
+
+		msgHash := blake2s.Sum256(msg[:])
+
+		fmt.Printf("msg:    %x\n", msg)
+		fmt.Printf("msgHash:    %x\n", msgHash)
+
+		rawSig := [ed25519.SignatureSize]byte(
+			ed25519.Sign(privateKey, msgHash[:]))
+
+		sig := sigfile.Signature{
+			Alg:    [2]byte{'E', 'b'},
+			KeyNum: [8]byte{1, 7},
+			Sig:    [64]byte{},
+		}
+
+		copy(sig.Sig[:], rawSig[:])
+
+		distinfo.Signature = sig
+
+		pub := sigfile.PubKey{
+			Alg:    [2]byte{'E', 'b'},
+			KeyNum: [8]byte{1, 7},
+		}
+		copy(pub.Key[:], privateKey.Public().(ed25519.PublicKey))
+		distinfo.PubKey = pub
+
+		path := *messagePath + ".json"
+		if *sigPath != "" {
+			path = *sigPath
+		}
+
+		// Remove old .json file
+		err = os.Remove(path)
+		if err != nil {
+			fmt.Printf("reading private key: %v", err)
+			os.Exit(1)
+		}
+		distinfo.ToFile(path, true)
+
+
+		path = *messagePath + ".sig"
+		if *sigPath != "" {
+			path = *sigPath
+		}
+
+		err = sigfile.WriteBase64(path, sig, "", true)
+		if err != nil {
+			fmt.Printf("Couldn't store signature: %v", err)
+			os.Exit(1)
+		}
+
+		os.Exit(0)
 	}
 
 	if *messagePath != "" {
@@ -74,7 +169,7 @@ func main() {
 		rawSig := [ed25519.SignatureSize]byte(
 			ed25519.Sign(privateKey, digest[:]))
 
-		sig := signature{
+		sig := sigfile.Signature{
 			Alg:    [2]byte{'E', 'b'},
 			KeyNum: [8]byte{1, 7},
 			Sig:    [64]byte{},
@@ -129,7 +224,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		pub := pubKey{
+		pub := sigfile.PubKey{
 			Alg:    [2]byte{'E', 'b'},
 			KeyNum: [8]byte{1, 7},
 		}
@@ -162,4 +257,48 @@ func readPrivate(seedPath string) (ed25519.PrivateKey, error) {
 	}
 
 	return ed25519.NewKeyFromSeed(seed[:]), nil
+}
+
+func (d *DistInfo) ToBuffer() ([]byte, error) {
+	j, err := json.Marshal(d)
+	if err != nil {
+		return []byte{}, fmt.Errorf("JSON marshalling failed: %w", err)
+	}
+
+	return j, nil
+}
+
+func (d *DistInfo) ToFile(fileName string, overwrite bool) error {
+	buf, err := d.ToBuffer()
+	if err != nil {
+		return err
+	}
+
+	return writeFile(fileName, buf, overwrite)
+}
+
+// writeFile writes buf into file filename. If overwrite is true it
+// overwrites any existing file, otherwise it returns an error.
+func writeFile(filename string, buf []byte, overwrite bool) error {
+	var f *os.File
+
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
+	if err != nil {
+		if os.IsExist(err) && overwrite {
+			f, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0o666)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+		} else {
+			return fmt.Errorf("%w", err)
+		}
+	}
+
+	defer f.Close()
+
+	if _, err := f.Write(buf); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
 }
