@@ -10,8 +10,8 @@ cryptographic keys.
 
 ## Requirements
 
-- The boot verifier should verify an Ed25519 signature over an app
-  digest.
+- The boot verifier should verify an Ed25519 signature over
+  `BLAKE2s(app_digest || app_name || flags)`.
 
 - The boot verifier should be able to pass this verified app digest to
   firmware when doing the reset system call.
@@ -45,6 +45,9 @@ cryptographic keys.
 
 - The boot verifier should ask firmware to measure its security
   policy, for instance a vendor public key.
+
+- The boot verifier should have a method so the signer of an app can
+  convey if an app is meant to be installed.
 
 ## Firmware, measurements, and storage access
 
@@ -105,20 +108,20 @@ Quick reminder of how the TKey (Castor version) works:
           data = seed)
      ```
 
-     ¹ This part is actually computed by the firmware before actually
-     doing the reset in order not to leak the CDI over the reset.
+     ¹ This part is computed by the firmware before doing the reset in
+     order not to leak the CDI over the reset.
 
      In the specific case of the boot verifier we're talking about here,
      app[n-1] is the CDI of the boot verifier itself.
 
      The seed can be whatever the caller wants to include in the
-     measurement, typically a digest of its trust policy, for example
+     measurement, typically a digest of its security policy, for example
      a vendor public key.
 
      Note that the caller's CDI, outside of the caller's control, is
      always included in the computation by the firmware. This means
      the entire program and its behaviour is, in a way, also a
-     measured trust policy. Change the boot verifier and you change
+     measured security policy. Change the boot verifier and you change
      the resulting ID.
 
      This creates a chain from parent to child, back to the integrity
@@ -166,9 +169,10 @@ sequenceDiagram
     Firmware->>Firmware: CDI = blake2s(k = UDS, d = domain<DOMAIN_CHAINED=0> || blake2s(First Stage App) [|| USS])
     create participant First Stage App
     Firmware->>First Stage App: CDI
-    First Stage App->>First Stage App: Fetch(vendor_pubkey, vendor_signature, app_digest)
-    First Stage App->>First Stage App: Verify(vendor_signature, app_digest)
-    First Stage App->>First Stage App: seed = blakes2(vendor_pubkey)
+    First Stage App->>First Stage App: Fetch(app metadata)
+    First Stage App->>First Stage App: message = blake2s(app_digest || app_name || flags) 
+    First Stage App->>First Stage App: Verify(signature, vendor_pubkey, message)
+    First Stage App->>First Stage App: seed = blakes2(vendor_pubkey || app_name)
     destroy First Stage App
     First Stage App->>Firmware: seed, second_stage_app_digest
     Firmware->>Firmware: measured_id = blake2s(K = CDI, d = seed)
@@ -180,21 +184,46 @@ sequenceDiagram
     Firmware->>Second Stage App: CDI
 ```
 
-The boot verifier app fetches (from the filesystem or from the client):
+The boot verifier fetches the app metadata (from the filesystem or
+from the client):
 
-- a vendor public key
-- an app digest for app[n+1]
-- signature(app[n+1] digest)
+- the app size for app[n+1]
+- the app digest for app[n+1]
+- the signature for app[n+1]
+- the app name for app[n+1]
+- the vendor public key
+- flags
 
 When these variables are fetched from the filesystem they are verified
 with a MAC, to prove authenticity of the stored data in flash. It is
 the boot-verifier responsibility to both calculate and verify the MAC.
 
-If the signature verifies against the public key, it does a
-`sys_reset()` system call with `seed` computed like this:
+The flags `installable` bit is set to true when fetched from the
+filesystem.
+
+The signture is over the message:
 
 ```
-seed = blake2s(vendor_pubkey)
+message = BLAKE2s(app_digest || app_name || flags)
+```
+
+where flags is two bytes, with one bit used currently. The reset is
+reserved and has to be set to zero. The first bit in the first byte
+indicates if the app is fit to be installed into flash, called
+`installable`.
+
+```
+flags, installable true: {0x01, 0x00}
+flags, installable false: {0x00, 0x00}
+
+```
+
+If the signature verifies against the public key, it does a
+`sys_reset()` system call with `seed` computed according to its
+security policy:
+
+```
+seed = blake2s(vendor_pubkey || app_name)
 ```
 
 When the boot verifier asks for a reset, the firmware measures this
@@ -217,10 +246,12 @@ CDI = blake2s(
     data = domain<DOMAIN_CHAINED=1> || measured_id [|| USS])
 ```
 
-In order to satisfy the requirement for different CDI for different
-apps you have to use different vendor key pairs for different apps.
-This might be as easy as using different USS for your TKey, perhaps a
-combination of a secret passphrase and a simple name of the app.
+The purpose of `app_name` is to enable different CDI for different
+apps, while  keepint the CDI for a newer version of the same app. This
+is handled during sigining an app by the one holding the key pairs.
+
+There is other methods to create unique CDI as well, such as using a
+USS when loaded from client, or using different key pairs.
 
 ## Start from flash
 
@@ -236,9 +267,9 @@ Firmware checks what to do by checking the reset type in the
 the app in slot 0 where boot verifier resides.
 
 The boot verifier reads the data it needs (see above) from the
-filesystem, verifies the signature over the app digest, computes the
-seed, and does a `sys_reset()`, passing along the reset type app
-"start from slot 1", digest of app[n+1], and the seed.
+filesystem, verifies the signature, computes the seed, and does a
+`sys_reset()`, passing along the reset type app "start from slot 1",
+digest of app[n+1], and the seed.
 
 ## Start from client
 
