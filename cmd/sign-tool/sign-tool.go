@@ -19,7 +19,7 @@ import (
 func usage() {
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s signs a BLAKE2s digest of the contents of a file or exports the public key.\n\n", os.Args[0])
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Sign message in FILE and write the result to FILE.sig (default):\n")
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -m FILE -s seckey [-o SIGFILE]\n\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -m FILE -n name -s seckey [-o SIGFILE]\n\n", os.Args[0])
 
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Write pubkey (in binary form with -P) generated from seckey to FILE.\n")
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -p|P FILE -s seckey\n\n", os.Args[0])
@@ -47,6 +47,8 @@ func main() {
 	pubkeyPath := flag.String("p", "", "Public key file to read from or write to")
 	binPubkeyPath := flag.String("P", "", "File to write binary pubkey to")
 	seedPath := flag.String("s", "", "File containing private key seed in hex")
+	name := flag.String("n", "", "Hex-string of name to include in signature, max 16 bytes")
+	installable := flag.Bool("i", false, "Includes the magiac bytes of an installable app")
 	flag.Usage = usage
 
 	flag.Parse()
@@ -70,9 +72,34 @@ func main() {
 			os.Exit(1)
 		}
 
+		// Zero initalised
+		var msg [32 + 16 + 2]byte
+
 		digest := blake2s.Sum256(message)
+		signLen := 32
+		copy(msg[:], digest[:])
+		fmt.Printf("Digest: %x\n", msg)
+		if *name != "" {
+			byteName := []byte(*name)
+			if len(byteName) > 16 {
+				fmt.Printf("Decode length mismatch: got %d, expected at most 16\n", len(byteName))
+				os.Exit(1)
+			}
+			copy(msg[32:], byteName)
+			signLen += 16
+			fmt.Printf("Name:   %x\n", byteName)
+		}
+
+		if *installable && *name != "" {
+			msg[48] = byte(1)
+			msg[49] = byte(0)
+			signLen += 2
+
+		}
+		fmt.Printf("msg:    %x\n", msg)
+
 		rawSig := [ed25519.SignatureSize]byte(
-			ed25519.Sign(privateKey, digest[:]))
+			ed25519.Sign(privateKey, msg[:signLen]))
 
 		sig := signature{
 			Alg:    [2]byte{'E', 'b'},
