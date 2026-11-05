@@ -406,9 +406,10 @@ enum state wait_for_command(enum state state, struct context *ctx)
 			   (pkt.cmd[4] << 24);
 		uint8_t *app_digest = &pkt.cmd[5];
 		uint8_t *app_signature = &pkt.cmd[37];
+		uint8_t *app_name= &pkt.cmd[101];
 
 		if (update_init(&ctx->update_ctx, app_size, app_digest,
-				app_signature) != 0) {
+				app_signature, app_name) != 0) {
 			rsp[0] = FRAME_STATUS_NOK;
 			appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
 			assert(1 == 2);
