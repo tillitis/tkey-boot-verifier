@@ -102,13 +102,14 @@ func main() {
 			signLen += 16 + 2
 			fmt.Printf("Name:   %x\n", byteName)
 			distinfo.Name = *name
+
+			if *installable {
+				msg[48] = byte(1)
+				msg[49] = byte(0)
+				distinfo.Installable = true
+			}
 		}
 
-		if *installable {
-			msg[48] = byte(1)
-			msg[49] = byte(0)
-			distinfo.Installable = true
-		}
 		fmt.Printf("msg:    %x\n", msg)
 
 		rawSig := [ed25519.SignatureSize]byte(
@@ -180,7 +181,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		pub := pubKey{
+		pub := sigfile.PubKey{
 			Alg:    [2]byte{'E', 'b'},
 			KeyNum: [8]byte{1, 7},
 		}
