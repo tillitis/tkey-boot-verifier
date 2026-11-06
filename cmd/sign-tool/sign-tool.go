@@ -110,10 +110,13 @@ func main() {
 			}
 		}
 
+		msgHash := blake2s.Sum256(msg[:])
+
 		fmt.Printf("msg:    %x\n", msg)
+		fmt.Printf("msgHash:    %x\n", msgHash)
 
 		rawSig := [ed25519.SignatureSize]byte(
-			ed25519.Sign(privateKey, msg[:signLen]))
+			ed25519.Sign(privateKey, msgHash[:]))
 
 		sig := sigfile.Signature{
 			Alg:    [2]byte{'E', 'b'},
