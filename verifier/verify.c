@@ -18,13 +18,19 @@ int reset_if_verified(const uint8_t pubkey[32], const uint8_t app_name[16],
 		      const uint8_t app_signature[64], bool installable)
 {
 
-	uint8_t msg[32 + 16 + 2] = {0};
-	memcpy(msg, app_digest, 32);
-	memcpy(&msg[32], app_name, 16);
-
+	// Build the message:
+	// BLAKE2s(app digest || name || installable)
+	uint8_t msg[32] = {0};
+	uint8_t flags[2] = {0};
+	blake2s_ctx b2s_ctx;
+	(void)blake2s_init(&b2s_ctx, 32, NULL, 0);
+	blake2s_update(&b2s_ctx, app_digest, 32);
+	blake2s_update(&b2s_ctx, app_name, 16);
 	if (installable) {
-		msg[48] = 0x01;
+		flags[0] = 1;
 	}
+	blake2s_update(&b2s_ctx, flags, sizeof(flags));
+	blake2s_final(&b2s_ctx, msg);
 
 	if (crypto_ed25519_check(app_signature, pubkey, msg, sizeof(msg)) !=
 	    0) {
