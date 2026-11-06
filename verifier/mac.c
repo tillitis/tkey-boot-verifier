@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <tkey/debug.h>
 #include <tkey/syscall.h>
 #include <tkey/tk1_mem.h>
 
@@ -24,6 +25,7 @@ void mac_calc_key(const uint8_t key[32], const struct app_metadata *metadata,
 	blake2s_update(&ctx, &metadata->size, sizeof(metadata->size));
 	blake2s_update(&ctx, metadata->digest, sizeof(metadata->digest));
 	blake2s_update(&ctx, metadata->signature, sizeof(metadata->signature));
+	blake2s_update(&ctx, metadata->name, sizeof(metadata->name));
 	blake2s_update(&ctx, metadata->pubkey, sizeof(metadata->pubkey));
 	blake2s_final(&ctx, out_mac);
 
