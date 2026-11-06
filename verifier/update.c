@@ -12,6 +12,7 @@
 #include <tkey/syscall.h>
 #include <tkey/tk1_mem.h>
 
+#include "blake2s/blake2s.h"
 #include "mac.h"
 #include "update.h"
 
@@ -47,11 +48,15 @@ int update_init(struct update_ctx *ctx, size_t app_size, uint8_t app_digest[32],
 	// Verify the signature before moving on
 
 	// Build the message:
-	// app digest || name || installable: true
-	uint8_t msg[32 + 16 + 2] = {0};
-	memcpy(msg, app_digest, 32);
-	memcpy(&msg[32], app_name, 16);
-	msg[48] = 0x01;
+	// BLAKE2s(app digest || name || installable: true)
+	uint8_t msg[32] = {0};
+	blake2s_ctx b2s_ctx;
+	(void)blake2s_init(&b2s_ctx, 32, NULL, 0);
+	blake2s_update(&b2s_ctx, app_digest, 32);
+	blake2s_update(&b2s_ctx, app_name, 16);
+	uint8_t flags[2] = {0x01, 0x00};
+	blake2s_update(&b2s_ctx, flags, sizeof(flags));
+	blake2s_final(&b2s_ctx, msg);
 
 	// Verify against the already stored pubkey
 	if (crypto_ed25519_check(ctx->app_signature, metadata.pubkey, msg,
