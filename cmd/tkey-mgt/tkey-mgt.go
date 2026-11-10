@@ -14,10 +14,10 @@ import (
 	"os"
 	"strings"
 
-	"tkey-mgt/sigfile"
-
+	"github.com/tillitis/tkey-sign-cli/distfile"
 	"github.com/tillitis/tkeyclient"
 	"golang.org/x/crypto/blake2s"
+	"tkey-mgt/sigfile"
 )
 
 // nolint:typecheck // Avoid lint error when the embedding file is missing.
@@ -25,9 +25,19 @@ import (
 //go:embed verifier.bin
 var verifierBinary []byte
 
-func verifyAppSignature(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byte, bin []byte, sig [ed25519.SignatureSize]byte) error {
+func verifyAppSignature(bin []byte, distinfo distfile.DistInfo) error {
+	// Verify app and digest is equal
 	digest := blake2s.Sum256(bin)
-	if !ed25519.Verify(pubKey[:], digest[:], sig[:]) {
+	if !bytes.Equal(digest[:], distinfo.Message.AppDigest[:]) {
+		return errors.New("App and appDigest in cert file does not match")
+	}
+
+	message, err := distinfo.Message.SigningDigest()
+	if err != nil {
+		return err
+	}
+
+	if !ed25519.Verify(distinfo.PubKey.Key[:], message, distinfo.Signature.Sig[:]) {
 		return fmt.Errorf("app signature invalid")
 	}
 
@@ -94,7 +104,7 @@ func eraseAll(tk *tkeyclient.TillitisKey) error {
 	return nil
 }
 
-func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSize]byte) error {
+func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, distinfo distfile.DistInfo) error {
 	err := tk.Reset(tkeyclient.RstTypeStartFlash0, tkeyclient.VerifierCmdMode)
 	if err != nil {
 		return err
@@ -110,7 +120,11 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 		return err
 	}
 
-	err = verifyAppSignature(tk, pubkey, bin, sig)
+	if distinfo.PubKey.Key != pubkey {
+		return errors.New("supplied pubkey does not match pyubkey stored on device")
+	}
+
+	err = verifyAppSignature(bin, distinfo)
 	if err != nil {
 		return err
 	}
@@ -121,7 +135,7 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 
 	digest := blake2s.Sum256(bin)
 
-	if err := updateAppInit(tk, len(bin), digest, sig); err != nil {
+	if err := updateAppInit(tk, len(bin), digest, distinfo.Signature.Sig, distinfo.Message.Name); err != nil {
 		return err
 	}
 
@@ -150,11 +164,11 @@ func updateApp1(tk *tkeyclient.TillitisKey, bin []byte, sig [ed25519.SignatureSi
 	return nil
 }
 
-func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byte, appBin []byte, sig [ed25519.SignatureSize]byte) error {
+func startVerifier(tk *tkeyclient.TillitisKey, appBin []byte, distinfo distfile.DistInfo) error {
 	var err error
 	var secret []byte
 
-	err = verifyAppSignature(tk, pubKey, appBin, sig)
+	err = verifyAppSignature(appBin, distinfo)
 	if err != nil {
 		return err
 	}
@@ -179,14 +193,14 @@ func startVerifier(tk *tkeyclient.TillitisKey, pubKey [ed25519.PublicKeySize]byt
 		return err
 	}
 
-	err = setPubkey(tk, pubKey)
+	err = setPubkey(tk, distinfo.PubKey.Key)
 	if err != nil {
 		return fmt.Errorf("couldn't set pubkey: %w", err)
 	}
 
 	digest := blake2s.Sum256(appBin)
 
-	err = verify(tk, digest, sig)
+	err = verify(tk, digest, distinfo.Signature.Sig, distinfo.Message.Name, distinfo.Message.Installable)
 	if err != nil {
 		return err
 	}
@@ -259,9 +273,11 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) er
 }
 
 func usage() {
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app path -sig path -pub path-to-pubkey\n", os.Args[0])
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd install -app path -sig path\n", os.Args[0])
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd install-pubkey -pub path -sig path\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Boot and install applications on a TKey, install public keys,\nand erase storage areas.\n\n")
+
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd boot -app APPFILE -cert CERTFILE\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd install -app APPFILE -cert CERTFILE\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd install-pubkey -pub PUBFILE -sig SIGFILE\n", os.Args[0])
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -cmd erase-areas\n", os.Args[0])
 	flag.PrintDefaults()
 }
@@ -269,17 +285,18 @@ func usage() {
 func main() {
 	var err error
 
-	cmd := flag.String("cmd", "", "Command")
-	appPath := flag.String("app", "", "Path to app")
-	sigPath := flag.String("sig", "", "Path to signature")
-	pubPath := flag.String("pub", "", "Path to pubkey")
-	port := flag.String("port", "", "TKey serial port")
-	noExpectClose := flag.Bool("no-expect-close", false, "Do not expect serial port to disappear when TKey resets")
+	cmd := flag.String("cmd", "", "`command` to perform")
+	appPath := flag.String("app", "", "Path to the application binary `file`")
+	distinfoPath := flag.String("cert", "", "Path to distribution certificate `file`")
+	sigPath := flag.String("sig", "", "Path to signature `file`")
+	pubPath := flag.String("pub", "", "Path to pubkey `file`")
+	port := flag.String("port", "", "TKey serial `port`")
+	noExpectClose := flag.Bool("no-expect-close", false, "Do not expect serial port to disappear during resets")
 	flag.Usage = usage
 
 	flag.Parse()
 
-	tkeyclient.SilenceLogging()
+	// tkeyclient.SilenceLogging()
 
 	devPath := *port
 
@@ -322,7 +339,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		if *sigPath == "" {
+		if *distinfoPath == "" {
 			flag.Usage()
 			os.Exit(1)
 		}
@@ -333,30 +350,28 @@ func main() {
 			os.Exit(1)
 		}
 
-		appSig, err := sigfile.ReadSig(*sigPath)
+		distinfo := distfile.DistInfo{}
+		err = distinfo.FromFile(*distinfoPath)
 		if err != nil {
-			fmt.Printf("couldn't read file: %v\n", err)
+			fmt.Printf("couldn't read distinfo: %v\n", err)
 			os.Exit(1)
 		}
-		if appSig.Alg != [2]byte{'E', 'b'} {
+
+		fmt.Printf("distinfo: %v\n", distinfo)
+
+		if distinfo.Signature.Alg != distfile.B2sEd {
 			fmt.Printf("incompatible sig file, expected ed25519 signature over blake2s digest\n")
 			os.Exit(1)
 		}
 
-		if err := updateApp1(tk, appBin, appSig.Sig); err != nil {
+		if err := updateApp1(tk, appBin, distinfo); err != nil {
 			fmt.Printf("couldn't update app slot 1: %v\n", err)
 			exit(1)
 		}
 
 	case "boot":
-		if *appPath == "" || *sigPath == "" || *pubPath == "" {
+		if *appPath == "" || *distinfoPath == "" {
 			flag.Usage()
-			os.Exit(1)
-		}
-
-		appPub, err := sigfile.ReadKey(*pubPath)
-		if err != nil {
-			fmt.Printf("couldn't read file: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -366,17 +381,20 @@ func main() {
 			os.Exit(1)
 		}
 
-		appSig, err := sigfile.ReadSig(*sigPath)
+		distinfo := distfile.DistInfo{}
+		err = distinfo.FromFile(*distinfoPath)
 		if err != nil {
-			fmt.Printf("couldn't read file: %v\n", err)
+			fmt.Printf("couldn't read distinfo: %v\n", err)
 			os.Exit(1)
 		}
-		if appSig.Alg != [2]byte{'E', 'b'} {
+		fmt.Printf("distinfo: %v\n", distinfo)
+
+		if distinfo.Signature.Alg != distfile.B2sEd {
 			fmt.Printf("incompatible sig file, expected ed25519 signature over blake2s digest\n")
 			os.Exit(1)
 		}
 
-		if err := startVerifier(tk, appPub.Key, appBin, appSig.Sig); err != nil {
+		if err := startVerifier(tk, appBin, distinfo); err != nil {
 			fmt.Printf("couldn't load and start verifier: %v\n", err)
 			exit(1)
 		}
