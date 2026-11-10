@@ -37,6 +37,7 @@ static void test_update_should_call_sys_preload_delete_first(void **state)
 	memset(app_buf, 0x55, app_size);
 	uint8_t app_digest[32] = {0};
 	uint8_t app_signature[64] = {0};
+	uint8_t app_name[16] = {0};
 	struct update_ctx ctx = {0};
 
 	expect_function_call(__wrap_sys_preload_get_metadata);
@@ -47,7 +48,7 @@ static void test_update_should_call_sys_preload_delete_first(void **state)
 	expect_function_call(__wrap_sys_preload_get_metadata);
 	expect_function_call(__wrap_sys_preload_set_metadata);
 
-	update_init(&ctx, app_size, app_digest, app_signature);
+	update_init(&ctx, app_size, app_digest, app_signature, app_name);
 	update_write(&ctx, app_buf, write_size);
 	update_write(&ctx, app_buf + write_size, write_size);
 	update_finalize(&ctx);
