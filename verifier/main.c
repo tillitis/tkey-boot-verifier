@@ -187,8 +187,9 @@ static enum state verify_flash(void)
 
 	// Do we have an app to start?
 	if (metadata.size != 0) {
-		reset_if_verified(metadata.pubkey, START_FLASH1_VER,
-				  metadata.digest, metadata.signature);
+		reset_if_verified(metadata.pubkey, metadata.name,
+				  START_FLASH1_VER, metadata.digest,
+				  metadata.signature, true);
 	}
 
 	signal_issue();
@@ -355,16 +356,15 @@ enum state wait_for_command(enum state state, struct context *ctx)
 			assert(1 == 2);
 		}
 
-		uint8_t app_digest[32] = {0};
-		uint8_t app_signature[64] = {0};
+		uint8_t *app_digest = &pkt.cmd[1];
+		uint8_t *app_signature = &pkt.cmd[33];
+		uint8_t *app_name = &pkt.cmd[97];
+		bool installable = pkt.cmd[113] == 0x01 ? true : false;
 
-		// read digest and sig from client
-		memcpy(app_digest, &pkt.cmd[1], 32);
-		memcpy(app_signature, &pkt.cmd[33], 64);
 		if (ctx->vendor_ctx.pubkey_set) {
-			reset_if_verified(ctx->vendor_ctx.pubkey,
+			reset_if_verified(ctx->vendor_ctx.pubkey, app_name,
 					  START_CLIENT_VER, app_digest,
-					  app_signature);
+					  app_signature, installable);
 		}
 
 		// Pubkey is expected to be set and reset_if_verified()
@@ -406,9 +406,10 @@ enum state wait_for_command(enum state state, struct context *ctx)
 			   (pkt.cmd[4] << 24);
 		uint8_t *app_digest = &pkt.cmd[5];
 		uint8_t *app_signature = &pkt.cmd[37];
+		uint8_t *app_name = &pkt.cmd[101];
 
 		if (update_init(&ctx->update_ctx, app_size, app_digest,
-				app_signature) != 0) {
+				app_signature, app_name) != 0) {
 			rsp[0] = FRAME_STATUS_NOK;
 			appreply(pkt.hdr, CMD_UPDATE_APP_INIT, rsp);
 			assert(1 == 2);

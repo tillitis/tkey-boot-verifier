@@ -4,10 +4,12 @@
 #ifndef VERIFY_H
 #define VERIFY_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <tkey/syscall.h>
 
-int reset_if_verified(uint8_t pubkey[32], enum reset_start reset_type,
-		      uint8_t app_digest[32], uint8_t app_signature[64]);
+int reset_if_verified(const uint8_t pubkey[32], const uint8_t app_name[16],
+		      enum reset_start reset_type, const uint8_t app_digest[32],
+		      const uint8_t app_signature[64], bool installable);
 
 #endif

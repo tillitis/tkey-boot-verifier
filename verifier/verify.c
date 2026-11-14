@@ -3,6 +3,9 @@
 
 #include <blake2s/blake2s.h>
 #include <monocypher/monocypher-ed25519.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 #include <tkey/assert.h>
 #include <tkey/debug.h>
 #include <tkey/lib.h>
@@ -10,10 +13,27 @@
 
 #include "verify.h"
 
-int reset_if_verified(uint8_t pubkey[32], enum reset_start reset_type,
-		      uint8_t app_digest[32], uint8_t app_signature[64])
+int reset_if_verified(const uint8_t pubkey[32], const uint8_t app_name[16],
+		      enum reset_start reset_type, const uint8_t app_digest[32],
+		      const uint8_t app_signature[64], bool installable)
 {
-	if (crypto_ed25519_check(app_signature, pubkey, app_digest, 32) != 0) {
+
+	// Build the message:
+	// BLAKE2s(app digest || name || installable)
+	uint8_t msg[32] = {0};
+	uint8_t flags[2] = {0};
+	blake2s_ctx b2s_ctx;
+	(void)blake2s_init(&b2s_ctx, 32, NULL, 0);
+	blake2s_update(&b2s_ctx, app_digest, 32);
+	blake2s_update(&b2s_ctx, app_name, 16);
+	if (installable) {
+		flags[0] = 1;
+	}
+	blake2s_update(&b2s_ctx, flags, sizeof(flags));
+	blake2s_final(&b2s_ctx, msg);
+
+	if (crypto_ed25519_check(app_signature, pubkey, msg, sizeof(msg)) !=
+	    0) {
 		debug_puts("verifier: signature verification failed\n");
 		return -1;
 	}
@@ -26,12 +46,15 @@ int reset_if_verified(uint8_t pubkey[32], enum reset_start reset_type,
 	    .app_digest = {0},
 	};
 
-	// Make a digest of our trust policy and anything else we want
-	// to measure to be part of the next app's identity. Currently
-	// just the vendor public key.
-	int rc = blake2s(rst.measured_id_seed, RESET_DIGEST_SIZE, NULL, 0,
-			 (const void *)pubkey, 32);
-	assert(rc == 0);
+	// Make a digest of our security policy to be part of the next app's
+	// identity. Currently the BLAKE2s(public key || app_name)
+
+	blake2s_ctx ctx;
+
+	(void)blake2s_init(&ctx, 32, NULL, 0);
+	blake2s_update(&ctx, pubkey, 32);
+	blake2s_update(&ctx, app_name, 16);
+	blake2s_final(&ctx, rst.measured_id_seed);
 
 	memcpy_s(rst.app_digest, sizeof(rst.app_digest), app_digest, 32);
 

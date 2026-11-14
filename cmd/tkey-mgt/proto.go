@@ -188,7 +188,7 @@ func setPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte) error {
 	return nil
 }
 
-func updateAppInit(tk *tkeyclient.TillitisKey, size int, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
+func updateAppInit(tk *tkeyclient.TillitisKey, size int, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte, name string) error {
 	id := 0x01
 
 	tx, err := tkeyclient.NewFrameBuf(cmdUpdateAppInit, id)
@@ -202,6 +202,12 @@ func updateAppInit(tk *tkeyclient.TillitisKey, size int, digest [blake2s.Size]by
 	tx[5] = byte(size >> 24)
 	copy(tx[6:], digest[:])
 	copy(tx[38:], sig[:])
+
+	n := []byte(name)
+	if len(n) > 16 {
+		return fmt.Errorf("%w", err)
+	}
+	copy(tx[102:], n)
 
 	tkeyclient.Dump("update app1 tx", tx)
 
@@ -258,7 +264,7 @@ func writeChunk(tk *tkeyclient.TillitisKey, chunk []byte) error {
 // - 0x01 (verify) 1 byte
 // - digest 32 bytes
 // - signature 64 bytes
-func verify(tk *tkeyclient.TillitisKey, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte) error {
+func verify(tk *tkeyclient.TillitisKey, digest [blake2s.Size]byte, sig [ed25519.SignatureSize]byte, name string, installable bool) error {
 	id := 0x01
 
 	tx, err := tkeyclient.NewFrameBuf(cmdVerify, id)
@@ -268,6 +274,16 @@ func verify(tk *tkeyclient.TillitisKey, digest [blake2s.Size]byte, sig [ed25519.
 
 	copy(tx[2:], digest[:])
 	copy(tx[34:], sig[:])
+
+	n := []byte(name)
+	if len(n) > 16 {
+		return fmt.Errorf("%w", err)
+	}
+	copy(tx[98:], n)
+
+	if installable {
+		tx[114] = 1
+	}
 
 	tkeyclient.Dump("verify tx", tx)
 

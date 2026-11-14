@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Tillitis AB <tillitis.se>
 // SPDX-License-Identifier: BSD-2-Clause
 
+#include <monocypher/monocypher-ed25519.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <tkey/assert.h>
 #include <tkey/debug.h>
@@ -10,6 +12,7 @@
 #include <tkey/syscall.h>
 #include <tkey/tk1_mem.h>
 
+#include "blake2s/blake2s.h"
 #include "mac.h"
 #include "update.h"
 
@@ -18,17 +21,19 @@
 const uint32_t WRITE_ALIGN_MASK = (~(WRITE_SIZE - 1));
 
 int update_init(struct update_ctx *ctx, size_t app_size, uint8_t app_digest[32],
-		uint8_t app_signature[64])
+		uint8_t app_signature[64], uint8_t app_name[16])
 {
 	if (app_size == 0 || app_size > TK1_APP_MAX_SIZE) {
 		debug_puts("Invalid app size!\n");
 		return -1;
 	}
 
+	// Clear and set ctx
 	ctx->upload_offset = 0;
 	ctx->upload_size = app_size;
 	memcpy(ctx->app_digest, app_digest, sizeof(ctx->app_digest));
 	memcpy(ctx->app_signature, app_signature, sizeof(ctx->app_signature));
+	memcpy(ctx->app_name, app_name, sizeof(ctx->app_name));
 
 	struct app_metadata metadata = {0};
 
@@ -40,9 +45,30 @@ int update_init(struct update_ctx *ctx, size_t app_size, uint8_t app_digest[32],
 		return -1;
 	}
 
+	// Verify the signature before moving on
+
+	// Build the message:
+	// BLAKE2s(app digest || name || installable: true)
+	uint8_t msg[32] = {0};
+	blake2s_ctx b2s_ctx;
+	(void)blake2s_init(&b2s_ctx, 32, NULL, 0);
+	blake2s_update(&b2s_ctx, app_digest, 32);
+	blake2s_update(&b2s_ctx, app_name, 16);
+	uint8_t flags[2] = {0x01, 0x00};
+	blake2s_update(&b2s_ctx, flags, sizeof(flags));
+	blake2s_final(&b2s_ctx, msg);
+
+	// Verify against the already stored pubkey
+	if (crypto_ed25519_check(ctx->app_signature, metadata.pubkey, msg,
+				 sizeof(msg)) != 0) {
+		return -1;
+	}
+
 	metadata.size = 0;
 	memset(metadata.digest, 0x00, sizeof(metadata.digest));
 	memset(metadata.signature, 0x00, sizeof(metadata.signature));
+	memset(metadata.name, 0x00, sizeof(metadata.name));
+	// Pubkey should be left intact
 
 	mac_calc(&metadata, metadata.mac);
 
@@ -92,16 +118,16 @@ int update_finalize(struct update_ctx *ctx)
 	memcpy_s(metadata.signature, sizeof(metadata.signature),
 		 ctx->app_signature, sizeof(ctx->app_signature));
 
+	memcpy_s(metadata.name, sizeof(metadata.name), ctx->app_name,
+		 sizeof(ctx->app_name));
+
 	mac_calc(&metadata, metadata.mac);
 
 	if (sys_preload_set_metadata(&metadata) != 0) {
 		return -1;
 	}
 
-	ctx->upload_size = 0;
-	memset(ctx->app_digest, 0, sizeof(ctx->app_digest));
-	memset(ctx->app_signature, 0, sizeof(ctx->app_signature));
-
+	memset(ctx, 0, sizeof(struct update_ctx));
 	memset(&metadata, 0, sizeof(metadata));
 
 	return 0;

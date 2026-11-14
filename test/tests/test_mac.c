@@ -26,10 +26,11 @@ const struct app_metadata metadata = {
     .pubkey = {0x01, 0x02, 0x03, 0x04},
 };
 
-const uint8_t expected[32] = {0xdc, 0x54, 0xe1, 0xa3, 0xe5, 0xd2, 0x5b, 0x87,
-			      0x48, 0x20, 0x74, 0x5a, 0x91, 0x4f, 0x3f, 0x3e,
-			      0xc8, 0x9f, 0xee, 0xfb, 0x5b, 0xbc, 0x36, 0x5c,
-			      0x6f, 0x93, 0x8c, 0x0f, 0x9c, 0x9a, 0x42, 0xfe};
+const uint8_t expected[32] = {
+    0xf5, 0xd9, 0x03, 0x6f, 0xe4, 0xe4, 0x90, 0xa0, 0xe3, 0xbd, 0x64,
+    0x69, 0x75, 0xf6, 0x0a, 0xe5, 0xa8, 0x0e, 0xed, 0x51, 0x65, 0x8f,
+    0x20, 0x5d, 0x3c, 0x57, 0xc4, 0xf9, 0xe8, 0xa4, 0x5d, 0x35,
+};
 
 static void test_mac_known_vector(void **state)
 {
@@ -60,6 +61,11 @@ static void test_mac_modified_metadata(void **state)
 
 	changed = metadata;
 	changed.signature[sizeof(changed.signature) - 1] ^= 1;
+	mac_calc_key(key, &changed, actual);
+	assert_memory_not_equal(actual, expected, sizeof(actual));
+
+	changed = metadata;
+	changed.name[sizeof(changed.name) - 1] ^= 1;
 	mac_calc_key(key, &changed, actual);
 	assert_memory_not_equal(actual, expected, sizeof(actual));
 
@@ -144,6 +150,10 @@ static void test_mac_verify_modified_metadata(void **state)
 
 	input = original;
 	input.signature[sizeof(input.signature) - 1] ^= 1;
+	assert_false(mac_verify_key(key, &input));
+
+	input = original;
+	input.name[sizeof(input.name) - 1] ^= 1;
 	assert_false(mac_verify_key(key, &input));
 
 	input = original;
