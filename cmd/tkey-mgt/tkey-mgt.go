@@ -15,9 +15,9 @@ import (
 	"strings"
 
 	"github.com/tillitis/tkey-sign-cli/distfile"
+	"github.com/tillitis/tkey-sign-cli/signify"
 	"github.com/tillitis/tkeyclient"
 	"golang.org/x/crypto/blake2s"
-	"tkey-mgt/sigfile"
 )
 
 // nolint:typecheck // Avoid lint error when the embedding file is missing.
@@ -392,13 +392,15 @@ func main() {
 			os.Exit(1)
 		}
 
-		appPub, err := sigfile.ReadKey(*pubPath)
+		appPub := signify.PubKey{}
+		err := appPub.FromFile(*pubPath)
 		if err != nil {
 			fmt.Printf("couldn't read file: %v\n", err)
 			os.Exit(1)
 		}
 
-		appSig, err := sigfile.ReadSig(*sigPath)
+		appSig := signify.Signature{}
+		err = appSig.FromFile(*sigPath)
 		if err != nil {
 			fmt.Printf("couldn't read file: %v\n", err)
 			os.Exit(1)
