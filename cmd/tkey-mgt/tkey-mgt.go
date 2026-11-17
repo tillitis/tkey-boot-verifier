@@ -44,6 +44,17 @@ func verifyAppSignature(bin []byte, distinfo distfile.DistInfo) error {
 	return nil
 }
 
+func verifyPubkeySignature(currentPubkey [ed25519.PublicKeySize]byte, newPubkey [ed25519.PublicKeySize]byte, sig [ed25519.SignatureSize]byte) error {
+	// Verify app and digest is equal
+	message := blake2s.Sum256(newPubkey[:])
+
+	if !ed25519.Verify(currentPubkey[:], message[:], sig[:]) {
+		return fmt.Errorf("pubkey signature invalid")
+	}
+
+	return nil
+}
+
 func reconnect(tk *tkeyclient.TillitisKey) error {
 	err := tk.WaitClosed()
 	if err != nil {
@@ -236,6 +247,11 @@ func installPubkey(tk *tkeyclient.TillitisKey, pubkey [32]byte, sig [64]byte) er
 
 	if bytes.Equal(currentPubkey[:], pubkey[:]) {
 		return errors.New("pubkey already installed")
+	}
+
+	err = verifyPubkeySignature(currentPubkey, pubkey, sig)
+	if err != nil {
+		return err
 	}
 
 	fmt.Printf("Your TKey will begin to blink yellow.\n")
