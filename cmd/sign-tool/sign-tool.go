@@ -4,15 +4,16 @@
 package main
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	_ "embed"
+	"encoding/binary"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
 
-	"tkey-mgt/sigfile"
-
+	"github.com/tillitis/tkey-sign-cli/signify"
 	"golang.org/x/crypto/blake2s"
 )
 
@@ -27,18 +28,6 @@ func usage() {
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -P FILE -p key.pub\n\n", os.Args[0])
 
 	flag.PrintDefaults()
-}
-
-type signature struct {
-	Alg    [2]byte
-	KeyNum [8]byte
-	Sig    [64]byte
-}
-
-type pubKey struct {
-	Alg    [2]byte
-	KeyNum [8]byte
-	Key    [ed25519.PublicKeySize]byte
 }
 
 func main() {
@@ -74,8 +63,8 @@ func main() {
 		rawSig := [ed25519.SignatureSize]byte(
 			ed25519.Sign(privateKey, digest[:]))
 
-		sig := signature{
-			Alg:    [2]byte{'E', 'b'},
+		sig := signify.Signature{
+			Alg:    signify.B2sEd,
 			KeyNum: [8]byte{1, 7},
 			Sig:    [64]byte{},
 		}
@@ -87,7 +76,7 @@ func main() {
 			path = *sigPath
 		}
 
-		err = sigfile.WriteBase64(path, sig, "", true)
+		err = sig.ToFile(path, "", true)
 		if err != nil {
 			fmt.Printf("Couldn't store signature: %v", err)
 			os.Exit(1)
@@ -97,13 +86,14 @@ func main() {
 
 		if *seedPath == "" {
 			// Export binary form of pubkey from Signify pubkey
-			pub, err := sigfile.ReadKey(*pubkeyPath)
+			pub := signify.PubKey{}
+			err := pub.FromFile(*pubkeyPath)
 			if err != nil {
 				fmt.Printf("Couldn't read pubkey: %v\n", err)
 				os.Exit(1)
 			}
 
-			err = sigfile.WriteBinary(*binPubkeyPath, pub.Key, true)
+			err = WriteBinary(*binPubkeyPath, pub.Key, true)
 			if err != nil {
 				fmt.Printf("Couldn't store pubkey: %v\n", err)
 				os.Exit(1)
@@ -116,7 +106,7 @@ func main() {
 				os.Exit(1)
 			}
 
-			err = sigfile.WriteBinary(*binPubkeyPath, privateKey.Public().(ed25519.PublicKey), true)
+			err = WriteBinary(*binPubkeyPath, privateKey.Public().(ed25519.PublicKey), true)
 			if err != nil {
 				fmt.Printf("Couldn't store pubkey: %v\n", err)
 				os.Exit(1)
@@ -129,13 +119,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		pub := pubKey{
+		pub := signify.PubKey{
 			Alg:    [2]byte{'E', 'b'},
 			KeyNum: [8]byte{1, 7},
 		}
 		copy(pub.Key[:], privateKey.Public().(ed25519.PublicKey))
 
-		err = sigfile.WriteBase64(*pubkeyPath, pub, "", true)
+		err = pub.ToFile(*pubkeyPath, "", true)
 		if err != nil {
 			fmt.Printf("Couldn't store pubkey: %v\n", err)
 			os.Exit(1)
@@ -162,4 +152,35 @@ func readPrivate(seedPath string) (ed25519.PrivateKey, error) {
 	}
 
 	return ed25519.NewKeyFromSeed(seed[:]), nil
+}
+
+func WriteBinary(filename string, data any, overwrite bool) error {
+	var buf bytes.Buffer
+
+	err := binary.Write(&buf, binary.BigEndian, data)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	var f *os.File
+
+	f, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
+	if err != nil {
+		if os.IsExist(err) && overwrite {
+			f, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o666)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+		} else {
+			return fmt.Errorf("%w", err)
+		}
+	}
+	defer func() { _ = f.Close() }()
+
+	_, err = f.Write([]byte(buf.Bytes()))
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
 }
