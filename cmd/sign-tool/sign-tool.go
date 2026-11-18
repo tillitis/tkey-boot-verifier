@@ -161,7 +161,7 @@ func main() {
 	if *messagePath != "" {
 		privateKey, err := readPrivate(*seedPath)
 		if err != nil {
-			fmt.Printf("reading private key: %v", err)
+			fmt.Printf("reading private key: %v\n", err)
 		}
 
 		message, err := os.ReadFile(*messagePath)
@@ -189,7 +189,7 @@ func main() {
 
 		err = sig.ToFile(path, "", true)
 		if err != nil {
-			fmt.Printf("Couldn't store signature: %v", err)
+			fmt.Printf("Couldn't store signature: %v\n", err)
 			os.Exit(1)
 		}
 	} else if *binPubkeyPath != "" {
