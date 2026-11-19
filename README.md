@@ -36,8 +36,9 @@ It currently supports:
 - Running both verifier and a verified device app sent from client.
 
 - To start tkey-boot-verifier, tkey-mgt always sends a reset request
-  to the currently running app. The reset request is currently unknown
-  to most apps.
+  to the currently running app.
+
+- Erase application data areas.
 
 ## Build
 
@@ -72,7 +73,7 @@ to update the USB controller firmware to Castor.
 See [TKey Developer
 Handbook](https://dev.tillitis.se/castor/unlocked/) for instructions.
 
-The boot verifier can be placed on flash, typically slot 0, then verifying
+The boot verifier can be placed on flash, in slot 0, then verifying
 slot 1, or loaded by a client app, followed by the app to be verified.
 
 ### Produce flash image or flash real hardware
@@ -120,35 +121,37 @@ able to talk to the firmware/apps when using QEMU.
 
 ### tkey-mgt
 
-- `tkey-mgt [-no-expect-close] -cmd boot -app path -sig path-to-signature -pub path-to-pubkey`
-- `tkey-mgt [-no-expect-close] -cmd install -app path -sig path-to-signature`
-- `tkey-mgt [-no-expect-close] -cmd install-pubkey -pub path`
+- `tkey-mgt [-no-expect-close] -cmd boot -app APPFILE -cert CERTFILE`
+- `tkey-mgt [-no-expect-close] -cmd install -app APPFILE -cert
+CERTFILE`
+- `tkey-mgt [-no-expect-close] -cmd install-pubkey -pub PUBFILE -sig
+SIGFILE`
 - `tkey-mgt [-no-expect-close] -cmd erase-areas`
 
 *NB*: use `-no-expect-close` when running `tkey-mgt` against QEMU. The
 connection behaves differently compared to real hardware.
 
+
+See [the distribution certificate](doc/distribution_certificate.md)
+for more information regarding `CERTFILE` above.
+
 #### boot
 
 Command `boot` does a verified boot of the device app specified with
-`-app`. It assumes a TKey running an app that supports the reset
-command.
+`-app`. You need a signed distribution certificate of the app you want
+to boot, specified with `-cert`.
+```
+$ ./sign-tool -d -m app [-i] [-n name] -s path-to-private-key
+```
 
 #### install
 
 Command `install` installs the device app specified with `-app` in
-slot 1. It assumes you are running an app that supports the reset
-command and that a verifier is present in slot 0. See above about
-producing a flash image for this use case. It will automatically reset
-the TKey after installing, telling firmware to start the verifier on
-flash, which will then verify slot 1's digest and reset again to ask
-firmware to start slot 1.
-
-You need a signature of the BLAKE2s digest of the app you want to boot
-or install. Create this with:
+slot 1. You need a signed distribution certificate of the app you want
+to install, marked as installable. Create this with:
 
 ```
-$ ./sign-tool -m app -s path-to-private-key
+$ ./sign-tool -d -m app -i [-n name] -s path-to-private-key
 ```
 
 The make target `dev-seed` creates a private key seed in `dev-seed`
@@ -158,18 +161,20 @@ corresponding to this public key you can use for testing:
 9b62773323ef41a11834824194e55164d325eb9cdcc10ddda7d10ade4fbd8f6d
 ```
 
-NOTE WELL: For real use signing of device apps [the tkey-sign
-tool](https://github.com/tillitis/tkey-sign-cli) with BLAKE2s support
-will most likely be used instead of `sign-tool`. Typically:
+To create a distribution certificate signed with a TKey use [the
+tkey-sign tool](https://github.com/tillitis/tkey-sign-cli). Use
+`sign-tool` to create a distribution message:
 
 ```
-tkey-sign -S -a b2s --uss -m fido2.bin  -p pubkey 
+$ ./sign-tool -d -m app [-i] [-n name]
 ```
+
+and sign it using `--sign-cert` with `tkey-sign` tool.
 
 #### install-pubkey
 
 Command `install-pubkey` installs the pubkey specified with `-pub`,
-replacing any installed pubkey. During the installation the user is
+replacing the installed pubkey. During the installation the user is
 asked to confirm by touching the TKey touch sensor.
 
 A *binary* version of the public key needs to be signed by the current
@@ -190,8 +195,6 @@ vendor private key. Typical series of commands:
 # Install the new public key on TKey
 ./tkey-mgt -cmd install-pubkey  -pub key.pub -sig key.bin.sig
 ```
-
-Remember to use `-no-expect-close` if you're running against qemu.
 
 For *production* you should be using a TKey and
 [`tkey-sign`](https://github.com/tillitis/tkey-sign-cli) instead of
