@@ -231,7 +231,7 @@ func main() {
 		}
 
 		pub := signify.PubKey{
-			Alg:    [2]byte{'E', 'b'},
+			Alg:    [2]byte{'E', 'd'},
 			KeyNum: [8]byte{1, 7},
 		}
 		copy(pub.Key[:], privateKey.Public().(ed25519.PublicKey))
