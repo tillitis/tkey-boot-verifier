@@ -4,49 +4,55 @@
 package main
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	_ "embed"
+	"encoding/binary"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
 
-	"tkey-mgt/sigfile"
-
+	"github.com/tillitis/tkey-sign-cli/distfile"
+	"github.com/tillitis/tkey-sign-cli/signify"
 	"golang.org/x/crypto/blake2s"
 )
 
 func usage() {
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s signs a BLAKE2s digest of the contents of a file or exports the public key.\n\n", os.Args[0])
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Sign message in FILE and write the result to FILE.sig (default):\n")
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -m FILE -s seckey [-o SIGFILE]\n\n", os.Args[0])
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), `Sign files, create distribution message or certificate, and export Ed25519 public keys.
 
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Write pubkey (in binary form with -P) generated from seckey to FILE.\n")
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -p|P FILE -s seckey\n\n", os.Args[0])
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Write pubkey in binary form from Signify format to FILE.\n")
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "%s -P FILE -p key.pub\n\n", os.Args[0])
+Sign a BLAKE2s digest of file and write a detached signature (default output: FILE.sig)
+  %[1]s -m FILE -s SEEDFILE [-o OUTFILE]
+
+Export an distribution message as JSON (default output: APP_msg.json)
+  %[1]s -d -m APP [-n NAME] [-i] [-o OUTFILE]
+
+Create a signed distribution certificate as JSON (default output: APP_cert.json)
+  %[1]s -d -m APP -s SEEDFILE [-n NAME] [-i] [-o OUTFILE]
+
+Derive a public key from a seed and write it in Signify format
+  %[1]s -p PUBFILE -s SEEDFILE
+
+Derive a public key from a seed and write it as 32 raw bytes
+  %[1]s -P OUTFILE -s SEEDFILE
+
+Extract the 32 raw public key bytes from a Signify public key file
+  %[1]s -P OUTFILE -p PUBFILE
+
+`, os.Args[0])
 
 	flag.PrintDefaults()
 }
 
-type signature struct {
-	Alg    [2]byte
-	KeyNum [8]byte
-	Sig    [64]byte
-}
-
-type pubKey struct {
-	Alg    [2]byte
-	KeyNum [8]byte
-	Key    [ed25519.PublicKeySize]byte
-}
-
 func main() {
-	messagePath := flag.String("m", "", "File containing message to sign")
-	sigPath := flag.String("o", "", "File to write signature to. Default: <message-file>.sig")
-	pubkeyPath := flag.String("p", "", "Public key file to read from or write to")
-	binPubkeyPath := flag.String("P", "", "File to write binary pubkey to")
-	seedPath := flag.String("s", "", "File containing private key seed in hex")
+	messagePath := flag.String("m", "", "Input `file`. With -d, this is the application binary.")
+	sigPath := flag.String("o", "", "Output path for the signature or JSON `file`.")
+	pubkeyPath := flag.String("p", "", "Signify public key `file` to read or write.")
+	binPubkeyPath := flag.String("P", "", "Output `file` for the 32 raw public key bytes.")
+	seedPath := flag.String("s", "", "`File` containing a hex-encoded 32-byte Ed25519 seed.")
+	name := flag.String("n", "", "`name` to include in the distribution message, ASCII. Only with -d.")
+	distFlag := flag.Bool("d", false, "Create distribution message as JSON. With -s, create a signed distribution certificate.")
+	installable := flag.Bool("i", false, "Mark the application as installable in the distribution message. Only with -d.")
 	flag.Usage = usage
 
 	flag.Parse()
@@ -58,10 +64,104 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *distFlag {
+
+		app, err := os.ReadFile(*messagePath)
+		if err != nil {
+			fmt.Printf("couldn't read file: %v\n", err)
+			os.Exit(1)
+		}
+
+		message := distfile.Message{}
+		message.AppDigest = blake2s.Sum256(app)
+
+		if *name != "" {
+			message.Name = *name
+		}
+
+		if *installable {
+			message.Installable = true
+		}
+
+		// No private key, just export message
+		if *seedPath == "" {
+			err := message.Validate()
+			if err != nil {
+				fmt.Printf("message invalid: %v\n", err)
+				os.Exit(1)
+
+			}
+			b, err := message.ToBuffer()
+			if err != nil {
+				fmt.Printf("couldn't serialize: %v\n", err)
+				os.Exit(1)
+			}
+
+			path := *messagePath + "_msg.json"
+
+			if *sigPath != "" {
+				path = *sigPath
+			}
+			err = writeFile(path, b, true)
+			if err != nil {
+				fmt.Printf("couldn't write file: %v\n", err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		}
+		b, err := message.SigningDigest()
+		if err != nil {
+			fmt.Printf("creating signing digest failed: %v\n", err)
+			os.Exit(1)
+		}
+
+		privateKey, err := readPrivate(*seedPath)
+		if err != nil {
+			fmt.Printf("reading private key: %v\n", err)
+			os.Exit(1)
+		}
+
+		rawSig := [ed25519.SignatureSize]byte(
+			ed25519.Sign(privateKey, b[:]))
+
+		di := distfile.DistInfo{}
+		di.Version = 1
+		di.Message = message
+		di.Signature.Alg = distfile.B2sEd
+		copy(di.Signature.Sig[:], rawSig[:])
+		di.PubKey.Alg = distfile.Ed
+		copy(di.PubKey.Key[:], privateKey.Public().(ed25519.PublicKey))
+
+		err = di.Validate()
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			os.Exit(1)
+		}
+
+		path := *messagePath + "_cert.json"
+		if *sigPath != "" {
+			path = *sigPath
+		}
+
+		b, err = di.ToBuffer()
+		if err != nil {
+			fmt.Printf("couldn't serialize: %v\n", err)
+			os.Exit(1)
+		}
+
+		err = writeFile(path, b, true)
+		if err != nil {
+			fmt.Printf("couldn't write file: %v\n", err)
+			os.Exit(1)
+		}
+
+		os.Exit(0)
+	}
+
 	if *messagePath != "" {
 		privateKey, err := readPrivate(*seedPath)
 		if err != nil {
-			fmt.Printf("reading private key: %v", err)
+			fmt.Printf("reading private key: %v\n", err)
 		}
 
 		message, err := os.ReadFile(*messagePath)
@@ -74,8 +174,8 @@ func main() {
 		rawSig := [ed25519.SignatureSize]byte(
 			ed25519.Sign(privateKey, digest[:]))
 
-		sig := signature{
-			Alg:    [2]byte{'E', 'b'},
+		sig := signify.Signature{
+			Alg:    signify.B2sEd,
 			KeyNum: [8]byte{1, 7},
 			Sig:    [64]byte{},
 		}
@@ -87,9 +187,9 @@ func main() {
 			path = *sigPath
 		}
 
-		err = sigfile.WriteBase64(path, sig, "", true)
+		err = sig.ToFile(path, "", true)
 		if err != nil {
-			fmt.Printf("Couldn't store signature: %v", err)
+			fmt.Printf("Couldn't store signature: %v\n", err)
 			os.Exit(1)
 		}
 	} else if *binPubkeyPath != "" {
@@ -97,13 +197,14 @@ func main() {
 
 		if *seedPath == "" {
 			// Export binary form of pubkey from Signify pubkey
-			pub, err := sigfile.ReadKey(*pubkeyPath)
+			pub := signify.PubKey{}
+			err := pub.FromFile(*pubkeyPath)
 			if err != nil {
 				fmt.Printf("Couldn't read pubkey: %v\n", err)
 				os.Exit(1)
 			}
 
-			err = sigfile.WriteBinary(*binPubkeyPath, pub.Key, true)
+			err = WriteBinary(*binPubkeyPath, pub.Key, true)
 			if err != nil {
 				fmt.Printf("Couldn't store pubkey: %v\n", err)
 				os.Exit(1)
@@ -116,7 +217,7 @@ func main() {
 				os.Exit(1)
 			}
 
-			err = sigfile.WriteBinary(*binPubkeyPath, privateKey.Public().(ed25519.PublicKey), true)
+			err = WriteBinary(*binPubkeyPath, privateKey.Public().(ed25519.PublicKey), true)
 			if err != nil {
 				fmt.Printf("Couldn't store pubkey: %v\n", err)
 				os.Exit(1)
@@ -129,13 +230,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		pub := pubKey{
-			Alg:    [2]byte{'E', 'b'},
+		pub := signify.PubKey{
+			Alg:    [2]byte{'E', 'd'},
 			KeyNum: [8]byte{1, 7},
 		}
 		copy(pub.Key[:], privateKey.Public().(ed25519.PublicKey))
 
-		err = sigfile.WriteBase64(*pubkeyPath, pub, "", true)
+		err = pub.ToFile(*pubkeyPath, "", true)
 		if err != nil {
 			fmt.Printf("Couldn't store pubkey: %v\n", err)
 			os.Exit(1)
@@ -162,4 +263,61 @@ func readPrivate(seedPath string) (ed25519.PrivateKey, error) {
 	}
 
 	return ed25519.NewKeyFromSeed(seed[:]), nil
+}
+
+func WriteBinary(filename string, data any, overwrite bool) error {
+	var buf bytes.Buffer
+
+	err := binary.Write(&buf, binary.BigEndian, data)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	var f *os.File
+
+	f, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
+	if err != nil {
+		if os.IsExist(err) && overwrite {
+			f, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o666)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+		} else {
+			return fmt.Errorf("%w", err)
+		}
+	}
+	defer func() { _ = f.Close() }()
+
+	_, err = f.Write([]byte(buf.Bytes()))
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
+// writeFile writes buf into file filename. If overwrite is true it
+// overwrites any existing file, otherwise it returns an error.
+func writeFile(filename string, buf []byte, overwrite bool) error {
+	var f *os.File
+
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
+	if err != nil {
+		if os.IsExist(err) && overwrite {
+			f, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o666)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+		} else {
+			return fmt.Errorf("%w", err)
+		}
+	}
+
+	defer f.Close()
+
+	if _, err := f.Write(buf); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
 }

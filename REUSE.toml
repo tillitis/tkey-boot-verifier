@@ -17,6 +17,7 @@ path = [
      "README.md",
      "RELEASE.md",
      "doc/design.md",
+     "doc/distribution_certificate.md",
      "go.mod",
      "go.sum",
      "verifier/app.bin.sha512",
