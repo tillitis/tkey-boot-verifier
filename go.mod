@@ -2,10 +2,8 @@ module tkey-mgt
 
 go 1.24.1
 
-replace github.com/tillitis/tkey-sign-cli => ../tkey-sign-cli/
-
 require (
-	github.com/tillitis/tkey-sign-cli v1.1.1
+	github.com/tillitis/tkey-sign-cli v1.1.2-0.20261126124405-ba63999c8a31
 	github.com/tillitis/tkeyclient v1.4.0
 	golang.org/x/crypto v0.40.0
 )

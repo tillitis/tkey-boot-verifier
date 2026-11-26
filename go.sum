@@ -8,6 +8,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
+github.com/tillitis/tkey-sign-cli v1.1.2-0.20261126124405-ba63999c8a31 h1:P8InIv9o7E4W0SzIrHd6L13HeVcykrzg5r5y3kAa3+Y=
+github.com/tillitis/tkey-sign-cli v1.1.2-0.20261126124405-ba63999c8a31/go.mod h1:yklq6OUAlgerNBhyzFJvEFTyxvmhdbdehLQ7A8gegIs=
 github.com/tillitis/tkeyclient v1.4.0 h1:7z0uRCZGefPqK5vhF8BCfeS6yy71ozNMO2+YIgS7W38=
 github.com/tillitis/tkeyclient v1.4.0/go.mod h1:7VtzyEjm08Wf+1zdrs20HsvM+WzhyztinvGG2/HY+Is=
 go.bug.st/serial v1.6.2 h1:kn9LRX3sdm+WxWKufMlIRndwGfPWsH1/9lCWXQCasq8=
