@@ -42,11 +42,11 @@ all: \
     tkey-mgt \
     testapp-probe \
     testapp/app_a.bin \
-    testapp/app_a.bin.sig \
-    testapp/app_a.bin.sig.1 \
+    testapp/app_a_cert.json \
+    testapp/app_a_cert.json.1 \
     testapp/app_b.bin \
-    testapp/app_b.bin.sig \
-    testapp/app_b.bin.sig.1 \
+    testapp/app_b_cert.json \
+    testapp/app_b_cert.json.1 \
     testapp/pubkey \
     testapp/pubkey.1 \
     testapp/pubkey.1.bin.sig \
@@ -140,6 +140,10 @@ testapp/pubkey.1: sign-tool dev-seed.1
 	./sign-tool -p $@ -s dev-seed.1
 testapp/pubkey.1.bin: sign-tool dev-seed.1
 	./sign-tool -P $@ -s dev-seed.1
+testapp/%_cert.json: testapp/%.bin sign-tool dev-seed
+	./sign-tool -d -m $< -i -n $* -s dev-seed -o $@
+testapp/%_cert.json.1: testapp/%.bin sign-tool dev-seed.1
+	./sign-tool -d -m $< -i -n $* -s dev-seed.1 -o $@
 
 dev-seed:
 	echo "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f" > $@
@@ -156,12 +160,12 @@ clean:
 	make -C test clean
 	rm -f $(TESTAPPOBJS)
 	rm -f testapp/app_a.bin
-	rm -f testapp/app_a.bin.sig
-	rm -f testapp/app_a.bin.sig.1
+	rm -f testapp/app_a_cert.json
+	rm -f testapp/app_a_cert.json.1
 	rm -f testapp/app_a.elf
 	rm -f testapp/app_b.bin
-	rm -f testapp/app_b.bin.sig
-	rm -f testapp/app_b.bin.sig.1
+	rm -f testapp/app_b_cert.json
+	rm -f testapp/app_b_cert.json.1
 	rm -f testapp/app_b.elf
 	rm -f testapp/pubkey
 	rm -f testapp/pubkey.bin
@@ -171,7 +175,7 @@ clean:
 	rm -f testapp/pubkey.1.bin.sig
 	rm -f testapp-probe
 	rm -f dev-seed
-	rm -f dev-seed1
+	rm -f dev-seed.1
 
 # Uses ../.clang-format
 FMTFILES=verifier/*.[ch] testapp/*.[ch]
